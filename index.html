@@ -1004,7 +1004,7 @@ function toggleRecurDay(n){
   renderRecurDays();
 }
 // 12 小时制时间选择器：上午/下午按钮 + 时/分两列滚轮
-const WHEEL_H = 40, WHEEL_PAD = 80;
+const WHEEL_H = 40;
 function initTimePickers(){
   ["start","end"].forEach(prefix=>{
     const hWheel = document.getElementById(prefix+"HourWheel");
@@ -1035,8 +1035,11 @@ function toggleTimePanel(prefix){
   if(panel){
     panel.classList.toggle("hidden");
     if(!panel.classList.contains("hidden")){
-      // 面板展开后下一帧再刷新，确保滚轮已可见
-      requestAnimationFrame(()=>refreshTimePanelUI(prefix));
+      // 面板展开后下一帧再刷新，确保滚轮已可见；布局稳定后再补一次高亮
+      requestAnimationFrame(()=>{
+        refreshTimePanelUI(prefix);
+        setTimeout(()=>updateWheelHighlight(prefix), 120);
+      });
     }
   }
 }
@@ -1087,11 +1090,24 @@ function readWheels(prefix){
   const m = String(mStr).padStart(2,"0") || "00";
   return String(h).padStart(2,"0")+":"+m;
 }
+function wheelCenterIndex(w){
+  // 不依赖 scrollTop 数学，直接比较每个 item 到容器中心的距离，最稳
+  if(!w || !w.children.length) return 0;
+  const rect = w.getBoundingClientRect();
+  const centerY = rect.top + rect.height/2;
+  let best = 0, bestDist = Infinity;
+  Array.from(w.children).forEach((c,i)=>{
+    const r = c.getBoundingClientRect();
+    const cy = r.top + r.height/2;
+    const d = Math.abs(cy - centerY);
+    if(d < bestDist){ bestDist = d; best = i; }
+  });
+  return best;
+}
 function readWheelValue(wheelId){
   const w = document.getElementById(wheelId);
   if(!w || !w.children.length) return "";
-  const rawIdx = Math.round((w.scrollTop - WHEEL_PAD) / WHEEL_H);
-  const idx = Math.max(0, Math.min(w.children.length-1, rawIdx));
+  const idx = wheelCenterIndex(w);
   const item = w.children[idx];
   return item ? (item.dataset.v || item.textContent || "") : "";
 }
@@ -1099,8 +1115,7 @@ function updateWheelHighlight(prefix){
   ["Hour","Minute"].forEach(type=>{
     const w = document.getElementById(prefix+type+"Wheel");
     if(!w || !w.children.length) return;
-    const rawIdx = Math.round((w.scrollTop - WHEEL_PAD) / WHEEL_H);
-    const idx = Math.max(0, Math.min(w.children.length-1, rawIdx));
+    const idx = wheelCenterIndex(w);
     Array.from(w.children).forEach((c,i)=>c.classList.toggle("on", i===idx));
   });
 }
@@ -1136,20 +1151,18 @@ function scrollWheelsTo(prefix, hm24){
   let ampm = "AM";
   if(h >= 12){ ampm = "PM"; h = h - 12; }
   if(h === 0) h = 12;
-  setAmPm(prefix, ampm);
   scrollWheel(prefix+"HourWheel", h-1);
   scrollWheel(prefix+"MinuteWheel", m);
+  setAmPm(prefix, ampm);
 }
 function scrollWheel(wheelId, index){
   const w = document.getElementById(wheelId);
-  if(!w) return;
-  const target = WHEEL_PAD + index*WHEEL_H;
-  if(Math.abs(w.scrollTop - target) > 2){
-    w.scrollTo({top: target, behavior:"auto"});
-  }
-  // 强制高亮当前项
+  if(!w || !w.children.length) return;
   const idx = Math.max(0, Math.min(w.children.length-1, index));
-  Array.from(w.children).forEach((c,i)=>c.classList.toggle("on", i===idx));
+  const item = w.children[idx];
+  // 让目标 item 的 center 对齐容器 center（不依赖 WHEEL_PAD 常量）
+  const target = item.offsetTop - w.clientHeight/2 + WHEEL_H/2;
+  w.scrollTo({top: target, behavior:"auto"});
 }
 function getTimeBox(prefix){
   const wheel = document.getElementById(prefix+"HourWheel");
@@ -1200,6 +1213,8 @@ function updateTimeHint(){
 function saveTodo(){
   let title = document.getElementById("todoTitle").value.trim();
   if(!title) title = "无标题";
+  // 保存前强制把当前滚轮 UI 落盘（双击/快速操作时滚轮可能未收起）
+  ["start","end"].forEach(p=>commitTimePanel(p));
   const due = currentPage==="schedule" ? curDate : todayStr();
   let start = getTimeBox("todoStart");
   let end = getTimeBox("todoEnd");
