@@ -1,6 +1,6 @@
 // Zero望月明工作台 — Service Worker 离线缓存壳
 // 缓存应用外壳，首次加载后支持离线以 standalone 模式运行。
-const CACHE_NAME = 'zwm-todo-v4';
+const CACHE_NAME = 'zwm-todo-v5';
 const ASSETS = [
   './',
   './index.html',
