@@ -1003,8 +1003,11 @@ function toggleRecurDay(n){
   if(i>=0) selRecurDays.splice(i,1); else selRecurDays.push(n);
   renderRecurDays();
 }
-// 12 小时制时间选择器：上午/下午按钮 + 时/分两列滚轮
+// 12 小时制时间选择器：上午/下午按钮 + 时(1-12)/分(00-59) 两列
+// 核心改动：选中值存进 timeSel 状态，取用时只读状态，绝不依赖滚轮滚动位置
+// → 手机端（小米/百度浏览器）滚轮测距不准也 100% 正确
 const WHEEL_H = 40;
+const timeSel = { start:{ampm:'AM',h:12,m:0}, end:{ampm:'AM',h:13,m:0} };
 function initTimePickers(){
   ["start","end"].forEach(prefix=>{
     const hWheel = document.getElementById(prefix+"HourWheel");
@@ -1013,20 +1016,68 @@ function initTimePickers(){
     let hh = "";
     for(let i=1;i<=12;i++){
       const v = String(i).padStart(2,"0");
-      hh += '<div class="wheel-item" data-v="'+v+'">'+v+'</div>';
+      hh += '<div class="wheel-item" data-v="'+v+'" onclick="pickWheelItem(\''+prefix+'\',\'h\','+i+')">'+v+'</div>';
     }
     hWheel.innerHTML = hh;
     let mm = "";
     for(let i=0;i<60;i++){
       const v = String(i).padStart(2,"0");
-      mm += '<div class="wheel-item" data-v="'+v+'">'+v+'</div>';
+      mm += '<div class="wheel-item" data-v="'+v+'" onclick="pickWheelItem(\''+prefix+'\',\'m\','+i+')">'+v+'</div>';
     }
     mWheel.innerHTML = mm;
-    [prefix+"HourWheel", prefix+"MinuteWheel"].forEach(id=>{
-      const w = document.getElementById(id);
-      if(w && !w._bound){ w._bound=true; w.addEventListener("scroll", ()=>onWheelScroll(prefix), {passive:true}); }
-    });
   });
+}
+function pickWheelItem(prefix, type, val){
+  if(type==='h') timeSel[prefix].h = val;
+  else timeSel[prefix].m = val;
+  renderWheelSel(prefix, type);              // 高亮跟随已选值，与滚动位置无关
+  centerWheelItem(prefix, type, val);        // 把选中项滚到视线中央（装饰，失败不影响取值）
+  updateTimeDisplay(prefix);
+}
+function centerWheelItem(prefix, type, val){
+  const w = document.getElementById(prefix + (type==='h' ? "HourWheel" : "MinuteWheel"));
+  const idx = type==='h' ? val-1 : val;
+  if(w && w.children[idx]){
+    try{ w.scrollTo({top: w.children[idx].offsetTop - w.clientHeight/2 + WHEEL_H/2, behavior:'smooth'}); }catch(e){}
+  }
+}
+function setAmPm(prefix, v){
+  timeSel[prefix].ampm = v;
+  const toggle = document.getElementById(prefix+"AmpmToggle");
+  if(toggle) toggle.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===v));
+  updateTimeDisplay(prefix);
+}
+function selTo24(prefix){
+  let h = timeSel[prefix].h;
+  if(timeSel[prefix].ampm==='PM'){ if(h!==12) h += 12; }
+  else { if(h===12) h = 0; }
+  const m = timeSel[prefix].m;
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+}
+function renderWheelSel(prefix, type){
+  const w = document.getElementById(prefix + (type==='h' ? "HourWheel" : "MinuteWheel"));
+  if(!w) return;
+  const selVal = (type==='h') ? timeSel[prefix].h : timeSel[prefix].m;
+  Array.from(w.children).forEach(c=>{
+    c.classList.toggle("on", parseInt(c.dataset.v,10)===selVal);
+  });
+}
+function updateTimeDisplay(prefix){
+  const hm24 = selTo24(prefix);
+  const input = document.getElementById(prefix+"Val");
+  if(input) input.value = hm24;
+  const display = document.getElementById(prefix+"Display");
+  if(display) display.textContent = fmtTime12(hm24);
+  updateTimeHint();
+}
+function syncTimePanel(prefix){
+  renderWheelSel(prefix,'h');
+  renderWheelSel(prefix,'m');
+  const toggle = document.getElementById(prefix+"AmpmToggle");
+  if(toggle) toggle.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===timeSel[prefix].ampm));
+  centerWheelItem(prefix,'h',timeSel[prefix].h);
+  centerWheelItem(prefix,'m',timeSel[prefix].m);
+  updateTimeDisplay(prefix);
 }
 function toggleTimePanel(prefix){
   const panel = document.getElementById(prefix+"TimePanel");
@@ -1035,11 +1086,8 @@ function toggleTimePanel(prefix){
   if(panel){
     panel.classList.toggle("hidden");
     if(!panel.classList.contains("hidden")){
-      // 面板展开后下一帧再刷新，确保滚轮已可见；布局稳定后再补一次高亮
-      requestAnimationFrame(()=>{
-        refreshTimePanelUI(prefix);
-        setTimeout(()=>updateWheelHighlight(prefix), 120);
-      });
+      // 面板展开后下一帧再同步一次，确保滚轮可见后高亮/滚动到位
+      requestAnimationFrame(()=>refreshTimePanelUI(prefix));
     }
   }
 }
@@ -1055,126 +1103,24 @@ function confirmTimePanel(prefix){
   document.getElementById(prefix+"TimePanel").classList.add('hidden');
   updateTimeHint();
 }
-function commitTimePanel(prefix){
-  const hm24 = readWheels(prefix);
-  const input = document.getElementById(prefix+"Val");
-  if(input) input.value = hm24;
-  const display = document.getElementById(prefix+"Display");
-  if(display) display.textContent = fmtTime12(hm24);
-}
+function commitTimePanel(prefix){ updateTimeDisplay(prefix); }   // 取值源是 timeSel，落盘即准确
 function refreshTimePanelUI(prefix){
   const input = document.getElementById(prefix+"Val");
   const val = (input && input.value) || "12:00";
   setTimeBox(prefix, val);
 }
-function onWheelScroll(prefix){
-  updateWheelHighlight(prefix);
-  clearTimeout(window._wheelTimer);
-  window._wheelTimer = setTimeout(()=>{
-    updateWheelHighlight(prefix); // snap 动画结束后再算一次
-    const hm24 = readWheels(prefix);
-    const input = document.getElementById(prefix+"Val");
-    if(input) input.value = hm24;
-    const display = document.getElementById(prefix+"Display");
-    if(display) display.textContent = fmtTime12(hm24);
-    updateTimeHint();
-  }, 180);
-}
-function readWheels(prefix){
-  const ampm = getAmPm(prefix);
-  const hStr = readWheelValue(prefix+"HourWheel"); // 01-12
-  const mStr = readWheelValue(prefix+"MinuteWheel"); // 00-59
-  let h = parseInt(hStr, 10) || 0;
-  if(ampm === "PM"){ if(h !== 12) h += 12; }
-  else if(h === 12) h = 0;
-  const m = String(mStr).padStart(2,"0") || "00";
-  return String(h).padStart(2,"0")+":"+m;
-}
-function wheelCenterIndex(w){
-  // 不依赖 scrollTop 数学，直接比较每个 item 到容器中心的距离，最稳
-  if(!w || !w.children.length) return 0;
-  const rect = w.getBoundingClientRect();
-  const centerY = rect.top + rect.height/2;
-  let best = 0, bestDist = Infinity;
-  Array.from(w.children).forEach((c,i)=>{
-    const r = c.getBoundingClientRect();
-    const cy = r.top + r.height/2;
-    const d = Math.abs(cy - centerY);
-    if(d < bestDist){ bestDist = d; best = i; }
-  });
-  return best;
-}
-function readWheelValue(wheelId){
-  const w = document.getElementById(wheelId);
-  if(!w || !w.children.length) return "";
-  const idx = wheelCenterIndex(w);
-  const item = w.children[idx];
-  return item ? (item.dataset.v || item.textContent || "") : "";
-}
-function updateWheelHighlight(prefix){
-  ["Hour","Minute"].forEach(type=>{
-    const w = document.getElementById(prefix+type+"Wheel");
-    if(!w || !w.children.length) return;
-    const idx = wheelCenterIndex(w);
-    Array.from(w.children).forEach((c,i)=>c.classList.toggle("on", i===idx));
-  });
-}
-function getAmPm(prefix){
-  const toggle = document.getElementById(prefix+"AmpmToggle");
-  if(!toggle) return "AM";
-  const on = toggle.querySelector(".ampm.on");
-  return on ? (on.dataset.v || "AM") : "AM";
-}
-function setAmPm(prefix, v){
-  const toggle = document.getElementById(prefix+"AmpmToggle");
-  if(toggle) toggle.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===v));
-  // 切换 AM/PM 后立即同步到显示
-  const hm24 = readWheels(prefix);
-  const input = document.getElementById(prefix+"Val");
-  if(input) input.value = hm24;
-  const display = document.getElementById(prefix+"Display");
-  if(display) display.textContent = fmtTime12(hm24);
-  updateTimeHint();
-}
 function setTimeBox(prefix, hm24){
-  const display = document.getElementById(prefix+"Display");
-  const input = document.getElementById(prefix+"Val");
-  if(!input) return;
-  if(!hm24){ input.value="12:00"; if(display) display.textContent=fmtTime12("12:00"); scrollWheelsTo(prefix,"12:00"); setAmPm(prefix,"AM"); return; }
-  let [h,m]=hm24.split(":").map(Number);
-  input.value = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-  if(display) display.textContent = fmtTime12(input.value);
-  scrollWheelsTo(prefix, input.value);
-}
-function scrollWheelsTo(prefix, hm24){
-  let [h,m]=hm24.split(":").map(Number);
+  if(!hm24) hm24 = "12:00";
+  let [h,m] = hm24.split(":").map(Number);
   let ampm = "AM";
   if(h >= 12){ ampm = "PM"; h = h - 12; }
   if(h === 0) h = 12;
-  scrollWheel(prefix+"HourWheel", h-1);
-  scrollWheel(prefix+"MinuteWheel", m);
-  setAmPm(prefix, ampm);
-}
-function scrollWheel(wheelId, index){
-  const w = document.getElementById(wheelId);
-  if(!w || !w.children.length) return;
-  const idx = Math.max(0, Math.min(w.children.length-1, index));
-  const item = w.children[idx];
-  // 让目标 item 的 center 对齐容器 center（不依赖 WHEEL_PAD 常量）
-  const target = item.offsetTop - w.clientHeight/2 + WHEEL_H/2;
-  w.scrollTo({top: target, behavior:"auto"});
+  timeSel[prefix] = {ampm, h, m};
+  syncTimePanel(prefix);
 }
 function getTimeBox(prefix){
-  const wheel = document.getElementById(prefix+"HourWheel");
-  if(wheel && wheel.children.length){
-    const v = readWheels(prefix);
-    if(v && /^\d{2}:\d{2}$/.test(v)) return v;
-  }
-  const input = document.getElementById(prefix+"Val");
-  if(!input) return "";
-  const v = input.value;
-  if(!v || !/^\d{2}:\d{2}$/.test(v)) return "";
-  return v;
+  // 直接读选中状态，绝不依赖滚轮滚动位置 → 手机端也 100% 准确
+  return selTo24(prefix);
 }
 function periodLabel(h){
   if(h===0) return "凌晨";
