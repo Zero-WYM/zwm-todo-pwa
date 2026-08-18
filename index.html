@@ -300,14 +300,21 @@
   .label{font-size:12px; color:var(--text-dim); font-weight:700; margin:6px 2px 6px;}
   .row2{display:flex; gap:10px;}
   .row2 > *{flex:1;}
-  .time-box{display:flex; align-items:center; gap:4px; border:1px solid var(--card-border); background:rgba(128,128,128,.12); border-radius:12px; padding:6px 8px; margin-bottom:12px;}
-  .time-box select{background:transparent; color:var(--text); border:none; font-size:16px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; text-align:center;}
-  .time-h{width:44px; font-weight:700;}
-  .time-m{width:40px; font-weight:700;}
-  .time-colon{color:var(--text-dim); font-weight:700; font-size:16px;}
-  .ampm-toggle{display:flex; margin-left:auto; border:1px solid var(--card-border); border-radius:10px; overflow:hidden;}
-  .ampm{font-size:12px; padding:6px 8px; color:var(--text-dim); cursor:pointer; user-select:none; -webkit-user-select:none;}
-  .ampm.on{background:var(--accent); color:#fff;}
+  .time-box{display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--card-border); background:rgba(128,128,128,.12); border-radius:12px; padding:8px; margin-bottom:12px; cursor:pointer;}
+  .time-box:active{transform:scale(.98);}
+  .time-display{font-size:16px; font-weight:700; color:var(--text);}
+  .time-display .ampm-label{font-size:12px; color:var(--text-dim); margin-left:4px; font-weight:500;}
+  .time-panel{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:12px; margin:-4px 0 12px;}
+  .time-panel.hidden{display:none;}
+  .time-grid{display:grid; gap:6px; margin-bottom:10px;}
+  .time-grid.hours{grid-template-columns:repeat(6,1fr);}
+  .time-grid.minutes{grid-template-columns:repeat(4,1fr);}
+  .time-cell{text-align:center; padding:8px 4px; border-radius:10px; background:rgba(128,128,128,.12); color:var(--text); font-size:14px; cursor:pointer; border:1px solid transparent;}
+  .time-cell.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .time-cell:active{transform:scale(.95);}
+  .ampm-toggle{display:flex; justify-content:center; gap:8px;}
+  .ampm{font-size:13px; padding:7px 18px; border-radius:10px; color:var(--text-dim); cursor:pointer; user-select:none; -webkit-user-select:none; border:1px solid var(--card-border); background:rgba(128,128,128,.12);}
+  .ampm.on{background:var(--accent); color:#fff; border-color:var(--accent);}
   .catpick{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
   .catpick .cp{
     font-size:13px; font-weight:700; padding:7px 12px; border-radius:18px; cursor:pointer;
@@ -357,6 +364,9 @@
   .tl-block .tl-m{font-size:11px; color:var(--text-dim); margin-top:2px;}
   .tl-block.done{opacity:.5; text-decoration:line-through;}
   .tl-seg.grab, .tl-block.grab{cursor:grabbing; box-shadow:0 6px 18px rgba(0,0,0,.30); z-index:6;}
+  .tl-seg.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 0 10px rgba(248,113,113,.55); z-index:5; }
+  .tl-block.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 4px 12px rgba(248,113,113,.25); z-index:5; }
+  .tl-overlap > .tl-t{color:#f87171 !important; font-weight:800 !important;}
   .tl-now{position:absolute; left:41px; width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow:0 0 6px #f87171; margin-top:-4px;}
   .catpick .cp-add{border-style:dashed; color:var(--accent); font-weight:800; font-size:15px; padding:7px 12px;}
 
@@ -484,21 +494,31 @@
 
   <!-- 添加待办弹窗 -->
   <div class="mask" id="addMask" onclick="if(event.target===this)closeAdd()">
-    <div class="sheet">
+    <div class="sheet" onclick="closeTimePanels(event)">
       <h3 id="addTitle">添加待办</h3>
       <input class="field" id="todoTitle" placeholder="要做点什么？回车即保存" onkeydown="if(event.key==='Enter')saveTodo()">
       <div class="label">分类</div>
       <div class="catpick" id="catPick"></div>
       <div class="label">开始时间 / 结束时间</div>
       <div class="row2">
-        <div class="time-box" id="startTimeBox">
-          <select class="time-h" id="todoStartH"></select><span class="time-colon">:</span><select class="time-m" id="todoStartM"></select>
-          <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('start','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('start','PM')">下午</span></div>
+        <div class="time-box" id="startTimeBox" onclick="toggleTimePanel('start')">
+          <input type="hidden" id="todoStartVal">
+          <span class="time-display" id="todoStartDisplay">12:00<span class="ampm-label">上午</span></span>
         </div>
-        <div class="time-box" id="endTimeBox">
-          <select class="time-h" id="todoEndH"></select><span class="time-colon">:</span><select class="time-m" id="todoEndM"></select>
-          <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('end','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('end','PM')">下午</span></div>
+        <div class="time-box" id="endTimeBox" onclick="toggleTimePanel('end')">
+          <input type="hidden" id="todoEndVal">
+          <span class="time-display" id="todoEndDisplay">12:00<span class="ampm-label">上午</span></span>
         </div>
+      </div>
+      <div class="time-panel hidden" id="startTimePanel" onclick="event.stopPropagation()">
+        <div class="time-grid hours" id="startHours"></div>
+        <div class="time-grid minutes" id="startMinutes"></div>
+        <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('start','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('start','PM')">下午</span></div>
+      </div>
+      <div class="time-panel hidden" id="endTimePanel" onclick="event.stopPropagation()">
+        <div class="time-grid hours" id="endHours"></div>
+        <div class="time-grid minutes" id="endMinutes"></div>
+        <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('end','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('end','PM')">下午</span></div>
       </div>
       <div id="timeHint" style="font-size:11px;color:var(--text-dim);margin:-6px 2px 12px;min-height:16px;"></div>
       <div class="label">重复</div>
@@ -738,6 +758,15 @@ function renderSchedule(){
   const dayTodos = DB.todos.filter(t=> occursOn(t, curDate));
   const timed = dayTodos.filter(t=> t.start);
   const noTime = dayTodos.filter(t=> !t.start);
+  // 计算时间重叠的任务
+  const overlaps = new Set();
+  for(let i=0;i<timed.length;i++){
+    const a=timed[i], as=parseHM(a.start), ae=a.end?parseHM(a.end):(as+60);
+    for(let j=i+1;j<timed.length;j++){
+      const b=timed[j], bs=parseHM(b.start), be=b.end?parseHM(b.end):(bs+60);
+      if(Math.max(as,bs) < Math.min(ae,be)){ overlaps.add(a.id); overlaps.add(b.id); }
+    }
+  }
   let segs = "", blocks = "";
   timed.forEach(t=>{
     const sp = t.start.split(":");
@@ -752,13 +781,13 @@ function renderSchedule(){
       endStr = String(hh+Math.floor((mm+durMin)/60))+":"+String((mm+durMin)%60).padStart(2,"0");
     }
     const h = Math.max(durMin/60 * HOUR_PX, 26);
-    const c = catById(t.catId);
-    const col = c ? c.color : "#a78bfa";
+    const col = taskColor(t, curDate);
     const done = isDoneOn(t, curDate);
+    const ovClass = overlaps.has(t.id) ? " tl-overlap" : "";
     // 轴上的彩色任务段（起→止）
-    segs += '<div class="tl-seg '+(done?"done":"")+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+col+'" onpointerdown="startDrag(event,'+t.id+')"></div>';
+    segs += '<div class="tl-seg '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+col+'" onpointerdown="startDrag(event,'+t.id+')"></div>';
     // 右侧标签卡
-    blocks += '<div class="tl-block '+(done?"done":"")+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onpointerdown="startDrag(event,'+t.id+')">'
+    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onpointerdown="startDrag(event,'+t.id+')">'
       + '<div class="tl-t" style="color:'+col+'">'+esc(t.title)+'</div>'
       + '<div class="tl-m">'+fmtTime12(t.start)+' – '+fmtTime12(endStr)+' · '+durMin+' 分钟</div></div>';
   });
@@ -904,48 +933,96 @@ function toggleRecurDay(n){
   if(i>=0) selRecurDays.splice(i,1); else selRecurDays.push(n);
   renderRecurDays();
 }
-// 12 小时制时间选择器工具函数
+// 12 小时制时间选择器工具函数（自定义面板，不触发系统原生选择器）
 function initTimePickers(){
-  // 只初始化一次选项
-  if(document.getElementById("todoStartH").options.length) return;
-  ["todoStart","todoEnd"].forEach(pre=>{
-    const hSel=document.getElementById(pre+"H"), mSel=document.getElementById(pre+"M");
-    for(let i=1;i<=12;i++){ const o=document.createElement("option"); o.value=String(i).padStart(2,"0"); o.textContent=String(i).padStart(2,"0"); hSel.appendChild(o); }
-    ["00","15","30","45"].forEach(m=>{ const o=document.createElement("option"); o.value=m; o.textContent=m; mSel.appendChild(o); });
-    hSel.addEventListener("change", updateTimeHint);
-    mSel.addEventListener("change", updateTimeHint);
+  ["start","end"].forEach(prefix=>{
+    const hBox = document.getElementById(prefix+"Hours");
+    const mBox = document.getElementById(prefix+"Minutes");
+    if(!hBox || hBox.children.length) return;
+    let hh = '<div class="time-grid hours">';
+    for(let i=1;i<=12;i++){ hh += '<div class="time-cell h'+(i===12?' on':'')+'" data-v="'+i+'" onclick="pickTimeH(\''+prefix+'\','+i+')">'+i+'</div>'; }
+    hh += '</div>';
+    hBox.innerHTML = hh;
+    let mm = '<div class="time-grid minutes">';
+    ["00","15","30","45"].forEach((m,idx)=>{ mm += '<div class="time-cell m'+(idx===0?' on':'')+'" data-v="'+m+'" onclick="pickTimeM(\''+prefix+'\',\''+m+'\')">'+m+'</div>'; });
+    mm += '</div>';
+    mBox.innerHTML = mm;
   });
 }
-function setAmPm(prefix, v){
-  const box=document.getElementById(prefix+"TimeBox");
-  if(!box) return;
-  box.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===v));
-  updateTimeHint();
+function toggleTimePanel(prefix){
+  const panel = document.getElementById(prefix+"TimePanel");
+  const other = prefix==="start" ? "end" : "start";
+  document.getElementById(other+"TimePanel").classList.add("hidden");
+  if(panel) panel.classList.toggle("hidden");
+  refreshTimePanelUI(prefix);
 }
-function setTimeBox(prefix, hm24){
-  const hSel=document.getElementById(prefix+"H"), mSel=document.getElementById(prefix+"M");
-  const box=document.getElementById(prefix+"TimeBox");
-  if(!hSel||!mSel||!box) return;
-  if(!hm24){ hSel.value="12"; mSel.value="00"; setAmPm(prefix,"AM"); return; }
-  let [h,m]=hm24.split(":").map(Number);
-  let ampm="AM";
-  if(h===0){ h=12; }
-  else if(h===12){ ampm="PM"; }
-  else if(h>12){ h-=12; ampm="PM"; }
-  hSel.value=String(h).padStart(2,"0");
-  mSel.value=String(m).padStart(2,"0");
-  setAmPm(prefix, ampm);
+function closeTimePanels(e){
+  if(e && (e.target.closest('.time-box') || e.target.closest('.time-panel'))) return;
+  document.getElementById('startTimePanel').classList.add('hidden');
+  document.getElementById('endTimePanel').classList.add('hidden');
 }
-function getTimeBox(prefix){
-  const hSel=document.getElementById(prefix+"H"), mSel=document.getElementById(prefix+"M");
-  const box=document.getElementById(prefix+"TimeBox");
-  if(!hSel||!mSel||!box) return "";
-  let h=parseInt(hSel.value,10)||12;
-  const ampm=box.querySelector(".ampm.on")?.dataset.v || "AM";
+function refreshTimePanelUI(prefix){
+  const input = document.getElementById(prefix+"Val");
+  const val = (input && input.value) || "12:00";
+  let [h24,m] = val.split(":").map(Number);
+  let ampm = "AM"; if(h24>=12) ampm="PM";
+  let h12 = h24 % 12; if(h12===0) h12=12;
+  const panel = document.getElementById(prefix+"TimePanel");
+  if(!panel) return;
+  panel.querySelectorAll(".time-cell.h").forEach(c=>c.classList.toggle("on", parseInt(c.dataset.v,10)===h12));
+  panel.querySelectorAll(".time-cell.m").forEach(c=>c.classList.toggle("on", c.dataset.v===String(m).padStart(2,"0")));
+  panel.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===ampm));
+}
+function pickTimeH(prefix, h){
+  const box = document.getElementById(prefix+"TimeBox");
+  const ampm = box.querySelector(".ampm.on")?.dataset.v || "AM";
   let h24 = h;
   if(ampm==="PM"){ if(h!==12) h24=h+12; }
   else { if(h===12) h24=0; }
-  return String(h24).padStart(2,"0")+":"+mSel.value;
+  const m = (document.getElementById(prefix+"Val").value.split(":")[1]) || "00";
+  setTimeBox(prefix, String(h24).padStart(2,"0")+":"+m);
+  refreshTimePanelUI(prefix);
+  updateTimeHint();
+}
+function pickTimeM(prefix, m){
+  const h = (document.getElementById(prefix+"Val").value.split(":")[0]) || "12";
+  setTimeBox(prefix, h+":"+m);
+  refreshTimePanelUI(prefix);
+  updateTimeHint();
+}
+function setAmPm(prefix, v){
+  const box=document.getElementById(prefix+"TimeBox");
+  if(box) box.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===v));
+  const h24 = parseInt(document.getElementById(prefix+"Val").value.split(":")[0],10) || 12;
+  let h12 = h24 % 12; if(h12===0) h12=12;
+  let newH24 = h12;
+  if(v==="PM"){ if(h12!==12) newH24=h12+12; }
+  else { if(h12===12) newH24=0; }
+  const m = document.getElementById(prefix+"Val").value.split(":")[1] || "00";
+  setTimeBox(prefix, String(newH24).padStart(2,"0")+":"+m);
+  refreshTimePanelUI(prefix);
+  updateTimeHint();
+}
+function setTimeBox(prefix, hm24){
+  const display = document.getElementById(prefix+"Display");
+  const input = document.getElementById(prefix+"Val");
+  const box = document.getElementById(prefix+"TimeBox");
+  if(!input) return;
+  if(!hm24){ input.value="12:00"; if(display) display.innerHTML='12:00<span class="ampm-label">上午</span>'; if(box) box.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v==="AM")); return; }
+  let [h,m]=hm24.split(":").map(Number);
+  let ampmLabel="上午", ampmVal="AM";
+  if(h>=12){ ampmLabel="下午"; ampmVal="PM"; }
+  let h12 = h%12; if(h12===0) h12=12;
+  input.value = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+  if(display) display.innerHTML = h12+':'+String(m).padStart(2,"0")+'<span class="ampm-label">'+ampmLabel+'</span>';
+  if(box) box.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===ampmVal));
+}
+function getTimeBox(prefix){
+  const input = document.getElementById(prefix+"Val");
+  if(!input) return "";
+  const v = input.value;
+  if(!v || !/^\d{2}:\d{2}$/.test(v)) return "";
+  return v;
 }
 function fmtTime12(hm24){
   if(!hm24) return "";
@@ -977,11 +1054,22 @@ function updateTimeHint(){
   } else el.textContent = "";
 }
 function saveTodo(){
-  const title = document.getElementById("todoTitle").value.trim();
-  if(!title){ closeAdd(); return; }
+  let title = document.getElementById("todoTitle").value.trim();
+  if(!title) title = "无标题";
   const due = currentPage==="schedule" ? curDate : todayStr();
   let start = getTimeBox("todoStart");
   let end = getTimeBox("todoEnd");
+  // 保底：时间无效时补当前半点/下小时
+  if(!start || !/^\d{2}:\d{2}$/.test(start)){
+    const now=new Date(); let h=now.getHours(), m=now.getMinutes();
+    if(m>=30){ h=(h+1)%24; m=0; } else m=30;
+    start = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+  }
+  if(!end || !/^\d{2}:\d{2}$/.test(end)){
+    let [sh,sm]=start.split(":").map(Number);
+    let eh=(sh+1)%24;
+    end = String(eh).padStart(2,"0")+":"+String(sm).padStart(2,"0");
+  }
   if(start && end) end = normalizeEnd(start, end);
   let recurDays = null;
   if(selRecur==="weekly"){ if(!selRecurDays.length) selRecurDays=[new Date().getDay()]; recurDays=selRecurDays.slice(); }
@@ -1064,6 +1152,42 @@ function editTodo(id){
 function hexA(hex,a){
   const h=hex.replace("#",""); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);
   return "rgba("+r+","+g+","+b+","+a+")";
+}
+function shiftHue(hex, deg){
+  const h=hex.replace("#","");
+  let r=parseInt(h.substr(0,2),16)/255, g=parseInt(h.substr(2,2),16)/255, b=parseInt(h.substr(4,2),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b); let l=(max+min)/2;
+  let s=0, hue=0;
+  if(max!==min){
+    s = l>0.5 ? (max-min)/(2-max-min) : (max-min)/(max+min);
+    if(max===r) hue=(g-b)/(max-min)+(g<b?6:0);
+    else if(max===g) hue=(b-r)/(max-min)+2;
+    else hue=(r-g)/(max-min)+4;
+    hue*=60;
+  }
+  hue = (hue + deg + 360) % 360;
+  const c=(1-Math.abs(2*l-1))*s;
+  const x=c*(1-Math.abs(((hue/60)%2)-1));
+  const m=l-c/2;
+  let rr,gg,bb;
+  if(hue<60){rr=c;gg=x;bb=0;}
+  else if(hue<120){rr=x;gg=c;bb=0;}
+  else if(hue<180){rr=0;gg=c;bb=x;}
+  else if(hue<240){rr=0;gg=x;bb=c;}
+  else if(hue<300){rr=x;gg=0;bb=c;}
+  else{rr=c;gg=0;bb=x;}
+  const toHex=v=>Math.round((v+m)*255).toString(16).padStart(2,"0");
+  return "#"+toHex(rr)+toHex(gg)+toHex(bb);
+}
+function taskColor(t, dateStr){
+  const c = catById(t.catId);
+  const base = c ? c.color : "#a78bfa";
+  const dayTodos = DB.todos.filter(x=> occursOn(x, dateStr) && x.start);
+  const sameCat = dayTodos.filter(x=> x.catId===t.catId);
+  if(sameCat.length <= 1) return base;
+  const idx = sameCat.findIndex(x=>x.id===t.id);
+  if(idx < 0) return base;
+  return shiftHue(base, idx * 22);
 }
 
 // ===== 分类管理 =====
