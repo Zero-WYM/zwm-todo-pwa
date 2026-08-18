@@ -511,12 +511,12 @@
       <div class="label">开始时间 / 结束时间</div>
       <div class="row2">
         <div class="time-box" id="startTimeBox" onclick="toggleTimePanel('start')">
-          <input type="hidden" id="todoStartVal">
-          <span class="time-display" id="todoStartDisplay">12:00</span>
+          <input type="hidden" id="startVal">
+          <span class="time-display" id="startDisplay">12:00</span>
         </div>
         <div class="time-box" id="endTimeBox" onclick="toggleTimePanel('end')">
-          <input type="hidden" id="todoEndVal">
-          <span class="time-display" id="todoEndDisplay">12:00</span>
+          <input type="hidden" id="endVal">
+          <span class="time-display" id="endDisplay">12:00</span>
         </div>
       </div>
       <div class="time-panel hidden" id="startTimePanel" onclick="event.stopPropagation()">
@@ -943,8 +943,8 @@ function openAdd(opts){
   const sh=String(h).padStart(2,"0"), sm=String(m).padStart(2,"0");
   let eh=(h+1)%24;
   const ehStr=String(eh).padStart(2,"0");
-  setTimeBox("todoStart", opts.start || (sh+":"+sm));
-  setTimeBox("todoEnd", opts.end || (ehStr+":"+sm));
+  setTimeBox("start", opts.start || (sh+":"+sm));
+  setTimeBox("end", opts.end || (ehStr+":"+sm));
   document.getElementById("timeHint").textContent="";
   selRecur="none"; selRecurDays=[];
   document.querySelectorAll("#recurPick .rp").forEach(r=>r.classList.toggle("on", r.dataset.r==="none"));
@@ -1048,10 +1048,12 @@ function setAmPm(prefix, v){
   updateTimeDisplay(prefix);
 }
 function selTo24(prefix){
-  let h = timeSel[prefix].h;
-  if(timeSel[prefix].ampm==='PM'){ if(h!==12) h += 12; }
+  const sel = timeSel[prefix];
+  if(!sel) return "12:00";   // 护栏：前缀写错也不抛错，避免整个添加流程崩掉
+  let h = sel.h;
+  if(sel.ampm==='PM'){ if(h!==12) h += 12; }
   else { if(h===12) h = 0; }
-  const m = timeSel[prefix].m;
+  const m = sel.m;
   return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
 }
 function renderWheelSel(prefix, type){
@@ -1147,7 +1149,7 @@ function normalizeEnd(start, end){
   return end; // 保持原样（真跨天或已经正确）
 }
 function updateTimeHint(){
-  const s=getTimeBox("todoStart"), e=getTimeBox("todoEnd");
+  const s=getTimeBox("start"), e=getTimeBox("end");
   const el=document.getElementById("timeHint");
   if(!s||!e||!el) return;
   const sm=parseHM(s), em=parseHM(e);
@@ -1162,8 +1164,8 @@ function saveTodo(){
   // 保存前强制把当前滚轮 UI 落盘（双击/快速操作时滚轮可能未收起）
   ["start","end"].forEach(p=>commitTimePanel(p));
   const due = currentPage==="schedule" ? curDate : todayStr();
-  let start = getTimeBox("todoStart");
-  let end = getTimeBox("todoEnd");
+  let start = getTimeBox("start");
+  let end = getTimeBox("end");
   // 保底：时间无效时补当前半点/下小时
   if(!start || !/^\d{2}:\d{2}$/.test(start)){
     const now=new Date(); let h=now.getHours(), m=now.getMinutes();
@@ -1246,8 +1248,8 @@ function editTodo(id){
   selRecur = t.recur || "none";
   selRecurDays = (t.recurDays || []).slice();
   initTimePickers();
-  setTimeBox("todoStart", t.start || "");
-  setTimeBox("todoEnd", t.end || "");
+  setTimeBox("start", t.start || "");
+  setTimeBox("end", t.end || "");
   document.querySelectorAll("#recurPick .rp").forEach(r=>r.classList.toggle("on", r.dataset.r===selRecur));
   renderRecurDays();
   renderCatPick();
