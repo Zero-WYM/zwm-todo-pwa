@@ -7,7 +7,7 @@
     var IS_NATIVE = !!(window.AndroidBridge) || /; wv\)|Android.*Version\//.test(navigator.userAgent);
     document.documentElement.classList.toggle('native', IS_NATIVE);
     window.IS_NATIVE = IS_NATIVE;
-    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.3" };
+    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.4" };
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -367,20 +367,16 @@
   .tl-spine{position:absolute; left:46px; top:0; bottom:0; width:2px; background:var(--card-border); border-radius:2px;}
   .tl-tick{position:absolute; left:41px; width:10px; height:2px; background:var(--card-border);}
   .tl-h{position:absolute; left:0; width:46px; text-align:right; top:-7px; font-size:9px; font-weight:700; color:var(--text-dim); background:var(--card); padding:0 4px; border-radius:6px; white-space:nowrap;}
-  .tl-seg{position:absolute; left:42px; width:8px; border-radius:4px; cursor:pointer;}
-  .tl-seg.done{opacity:.4;}
-  .tl-block{position:absolute; left:64px; width:fit-content; max-width:none; min-width:0; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); border-left:3px solid;}
-.tl-block.overlap-left::before{content:""; position:absolute; left:0; top:0; bottom:0; width:12px; background:rgba(248,113,113,.55); z-index:2;}
-.tl-block.overlap-right::after{content:""; position:absolute; right:0; top:0; bottom:0; width:12px; background:rgba(248,113,113,.45); z-index:2;}
-  .tl-block .tl-t{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .tl-block .tl-m{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .tl-block{position:absolute; left:54px; width:fit-content; max-width:none; min-width:0; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.18); border-left:5px solid; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35);}
+.tl-block.overlap-left::before{content:""; position:absolute; left:0; top:0; bottom:0; width:10px; background:rgba(248,113,113,.55); z-index:2;}
+.tl-block.overlap-right::after{content:""; position:absolute; right:0; top:0; bottom:0; width:10px; background:rgba(248,113,113,.45); z-index:2;}
+  .tl-block .tl-t{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#fff;}
+  .tl-block .tl-m{font-size:11px; color:rgba(255,255,255,.78); margin-top:2px;}
   .tl-block.narrow{padding:5px 6px;}
   .tl-block.narrow .tl-t{font-size:12px;}
   .tl-block.narrow .tl-m{display:none;}
-  .tl-block.done{opacity:.5; text-decoration:line-through;}
-  .tl-seg.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 0 10px rgba(248,113,113,.55); z-index:5; }
+  .tl-block.done{opacity:.55; text-decoration:line-through;}
   .tl-block.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 4px 12px rgba(248,113,113,.25); z-index:5; }
-  .tl-overlap > .tl-t{color:#f87171 !important; font-weight:800 !important;}
   .tl-now{position:absolute; left:41px; width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow:0 0 6px #f87171; margin-top:-4px;}
   .catpick .cp-add{border-style:dashed; color:var(--accent); font-weight:800; font-size:15px; padding:7px 12px;}
 
@@ -844,9 +840,9 @@ function renderSchedule(){
   const noTime = dayTodos.filter(t=> !t.start);
   const layout = buildOverlapLayout(timed);
   const phoneW = document.getElementById('phone') ? document.getElementById('phone').clientWidth : Math.min(window.innerWidth || 430, 430);
-  const availW = Math.max(120, phoneW - 64 - 16); // 右侧标签可用宽度（减去左边距和右留白）
+  const availW = Math.max(120, phoneW - 54 - 16); // 右侧色块可用宽度（减去左边距和右留白）
 
-  let segs = "", blocks = "";
+  let blocks = "";
   timed.forEach(t=>{
     const sp = t.start.split(":");
     let hh = parseInt(sp[0],10), mm = parseInt(sp[1],10);
@@ -867,16 +863,14 @@ function renderSchedule(){
     const info = layout.get(t.id) || {col:0, cols:1};
     const cols = info.cols || 1;
     const colW = cols === 1 ? availW : (availW + (cols-1)*OVERLAP_PX) / cols;
-    const left = 64 + info.col * (colW - OVERLAP_PX);
+    const left = 54 + info.col * (colW - OVERLAP_PX);
     const width = colW;
     const ovClass = cols > 1 ? " tl-overlap" : "";
     const olCls = (info.col > 0 ? " overlap-left" : "") + (info.col < cols-1 ? " overlap-right" : "");
     const narrowCls = width < 110 ? " narrow" : "";
-    // 左侧彩色时间段（跟随块列，宽 8px）
-    segs += '<div class="tl-seg '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+col+';left:'+left+'px" onclick="editTodo('+t.id+')"></div>';
-    // 右侧标签卡
-    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+olCls+narrowCls+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;left:'+left+'px;width:'+width+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
-      + '<div class="tl-t" style="color:'+col+'">'+esc(t.title)+'</div>'
+    // 色块本身即任务块：分类颜色背景 + 同色左边框 + 白色文字
+    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+olCls+narrowCls+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;left:'+left+'px;width:'+width+'px;background:'+hexA(col,.42)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
+      + '<div class="tl-t">'+esc(t.title)+'</div>'
       + '<div class="tl-m">'+fmtTime12(t.start)+' – '+fmtTime12(endStr)+' · '+durMin+' 分钟</div></div>';
   });
 
@@ -890,7 +884,7 @@ function renderSchedule(){
   }
 
   const body = (timed.length||noTime.length ? strip : '<div class="empty">这天还没有日程。<br>点底部 ＋ 添加一个带时间的待办，它会显示在时间轴上。</div>')
-    + '<div class="tl-wrap" style="height:'+total+'px" ondblclick="onTimelineDblClick(event)">'+spine+ticks+nowDot+segs+blocks+'</div>';
+    + '<div class="tl-wrap" style="height:'+total+'px" ondblclick="onTimelineDblClick(event)">'+spine+ticks+nowDot+blocks+'</div>';
   box.innerHTML = body;
   // 仅在切换日期时自动滚到 7:00，拖动/勾选后不跳回
   if(curDate !== lastScrollDate){
