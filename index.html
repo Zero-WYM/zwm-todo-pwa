@@ -304,14 +304,14 @@
   .time-box:active{transform:scale(.98);}
   .time-display{font-size:16px; font-weight:700; color:var(--text);}
   .time-display .ampm-label{font-size:12px; color:var(--text-dim); margin-left:4px; font-weight:500;}
-  .time-panel{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:12px; margin:-4px 0 12px;}
+  .time-panel{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:12px; margin:-4px 0 12px; position:relative;}
   .time-panel.hidden{display:none;}
-  .time-list{max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; padding-right:2px; -webkit-overflow-scrolling:touch;}
-  .time-list::-webkit-scrollbar{width:4px;}
-  .time-list::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:4px;}
-  .time-item{display:flex; align-items:center; justify-content:space-between; padding:11px 12px; border-radius:12px; background:rgba(128,128,128,.08); color:var(--text); font-size:15px; cursor:pointer; transition:background .15s;}
-  .time-item.on{background:var(--accent); color:#fff;}
-  .time-item:active{transform:scale(.99);}
+  .wheel-row{display:flex; justify-content:center; gap:10px; height:200px; position:relative; padding:0;}
+  .wheel-row::before{content:""; position:absolute; top:80px; left:12px; right:12px; height:40px; border-top:1px solid var(--card-border); border-bottom:1px solid var(--card-border); pointer-events:none; border-radius:2px;}
+  .time-wheel{flex:1; max-width:80px; height:200px; overflow-y:auto; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; text-align:center; position:relative; padding:80px 0;}
+  .time-wheel::-webkit-scrollbar{display:none;}
+  .wheel-item{height:40px; line-height:40px; scroll-snap-align:center; font-size:17px; color:var(--text-dim); transition:all .15s;}
+  .wheel-item.on{color:var(--accent); font-weight:800; font-size:20px; text-shadow:0 0 12px var(--glow-purple);}
   .catpick{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
   .catpick .cp{
     font-size:13px; font-weight:700; padding:7px 12px; border-radius:18px; cursor:pointer;
@@ -341,6 +341,16 @@
   .danger{color:#f87171;}
   .hidden{display:none !important;}
   .hint{font-size:12px; color:var(--text-dim); line-height:1.5; margin-top:8px;}
+
+  /* 日期选择日历 */
+  .cal-header{display:flex; justify-content:space-between; align-items:center; margin:0 0 12px;}
+  .cal-header #calMonthLabel{font-weight:800; font-size:15px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; text-align:center; margin-bottom:16px;}
+  .cal-day{padding:10px 0; border-radius:10px; cursor:pointer; font-size:14px; font-weight:700;}
+  .cal-day.other{opacity:.35;}
+  .cal-day.today{border:1px solid var(--accent);}
+  .cal-day.selected{background:var(--accent); color:#fff;}
+  .cal-wd{font-size:11px; color:var(--text-dim); font-weight:700; padding:4px 0;}
 
   /* 日程时间轴 */
   .sched-nav{display:flex; align-items:center; justify-content:space-between; margin:6px 2px 12px;}
@@ -459,7 +469,7 @@
     <section class="page active" id="page-schedule">
       <div class="sched-nav">
         <button class="navbtn" onclick="schShift(-1)">‹</button>
-        <span class="dlabel" id="schDateLabel">今天</span>
+        <span class="dlabel" id="schDateLabel" onclick="openDatePicker()">今天</span>
         <button class="todaybtn" onclick="schToday()">回到今天</button>
         <button class="navbtn" onclick="schShift(1)">›</button>
       </div>
@@ -507,10 +517,18 @@
         </div>
       </div>
       <div class="time-panel hidden" id="startTimePanel" onclick="event.stopPropagation()">
-        <div class="time-list" id="startTimeList"></div>
+        <div class="wheel-row" id="startWheels">
+          <div class="time-wheel" id="startAmpmWheel"><div class="wheel-item on" data-v="AM">上午</div><div class="wheel-item" data-v="PM">下午</div></div>
+          <div class="time-wheel" id="startHourWheel"></div>
+          <div class="time-wheel" id="startMinuteWheel"></div>
+        </div>
       </div>
       <div class="time-panel hidden" id="endTimePanel" onclick="event.stopPropagation()">
-        <div class="time-list" id="endTimeList"></div>
+        <div class="wheel-row" id="endWheels">
+          <div class="time-wheel" id="endAmpmWheel"><div class="wheel-item on" data-v="AM">上午</div><div class="wheel-item" data-v="PM">下午</div></div>
+          <div class="time-wheel" id="endHourWheel"></div>
+          <div class="time-wheel" id="endMinuteWheel"></div>
+        </div>
       </div>
       <div id="timeHint" style="font-size:11px;color:var(--text-dim);margin:-6px 2px 12px;min-height:16px;"></div>
       <div class="label">重复</div>
@@ -525,6 +543,20 @@
       <textarea class="field" id="todoNote" rows="2" placeholder="补充说明…"></textarea>
       <button class="btn primary" id="saveBtn" onclick="saveTodo()">保存</button>
       <button class="btn" onclick="closeAdd()">取消</button>
+    </div>
+  </div>
+
+  <!-- 日期选择弹窗 -->
+  <div class="mask hidden" id="datePickerMask" onclick="if(event.target===this)closeDatePicker()">
+    <div class="sheet">
+      <h3>选择日期</h3>
+      <div class="cal-header">
+        <button class="navbtn" onclick="changeCalMonth(-1)">‹</button>
+        <span id="calMonthLabel"></span>
+        <button class="navbtn" onclick="changeCalMonth(1)">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <button class="btn" onclick="closeDatePicker()">取消</button>
     </div>
   </div>
 
@@ -806,6 +838,78 @@ function renderSchedule(){
 
 function addDays(s,n){ const d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
+// ===== 日期选择日历 =====
+let calYear, calMonth;
+function openDatePicker(){
+  const d = new Date(curDate+"T00:00:00");
+  calYear = d.getFullYear(); calMonth = d.getMonth();
+  renderCalendar();
+  document.getElementById("datePickerMask").classList.add("show");
+}
+function closeDatePicker(){ document.getElementById("datePickerMask").classList.remove("show"); }
+function changeCalMonth(n){
+  calMonth += n;
+  if(calMonth < 0){ calMonth = 11; calYear--; }
+  if(calMonth > 11){ calMonth = 0; calYear++; }
+  renderCalendar();
+}
+function renderCalendar(){
+  const first = new Date(calYear, calMonth, 1);
+  const startDay = first.getDay(); // 0=周日
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const prevDays = new Date(calYear, calMonth, 0).getDate();
+  const weekDays = ["日","一","二","三","四","五","六"];
+  let h = weekDays.map(d=>'<div class="cal-wd">'+d+'</div>').join("");
+  for(let i=startDay-1; i>=0; i--){
+    h += '<div class="cal-day other">'+(prevDays-i)+'</div>';
+  }
+  const today = todayStr();
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = calYear+"-"+String(calMonth+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    let cls = "";
+    if(ds === today) cls += " today";
+    if(ds === curDate) cls += " selected";
+    h += '<div class="cal-day'+cls+'" onclick="pickCalDate(\''+ds+'\')">'+d+'</div>';
+  }
+  const totalCells = startDay + daysInMonth;
+  const rem = (7 - totalCells%7) % 7;
+  for(let d=1; d<=rem; d++){
+    h += '<div class="cal-day other">'+d+'</div>';
+  }
+  document.getElementById("calGrid").innerHTML = h;
+  document.getElementById("calMonthLabel").textContent = calYear+"年"+(calMonth+1)+"月";
+}
+function pickCalDate(ds){ curDate = ds; renderSchedule(); closeDatePicker(); }
+
+// ===== 时间轴滚动翻日期 =====
+function attachScrollDateSwitch(){
+  const main = document.querySelector("main");
+  if(!main || main._scrollSwitchBound) return;
+  main._scrollSwitchBound = true;
+  let startY=0, startTop=0, triggered=false;
+  main.addEventListener("touchstart", e=>{
+    if(currentPage !== "schedule") return;
+    startY = e.touches[0].clientY;
+    startTop = main.scrollTop;
+    triggered = false;
+  }, {passive:true});
+  main.addEventListener("touchmove", e=>{
+    if(triggered || currentPage !== "schedule") return;
+    const y = e.touches[0].clientY;
+    const dy = y - startY;
+    const maxTop = main.scrollHeight - main.clientHeight;
+    if(startTop <= 2 && dy > 80){
+      triggered = true;
+      schShift(-1);
+      setTimeout(()=>{ if(main) main.scrollTop = main.scrollHeight - main.clientHeight; }, 80);
+    } else if(startTop >= maxTop - 2 && dy < -80){
+      triggered = true;
+      schShift(1);
+      setTimeout(()=>{ if(main) main.scrollTop = 0; }, 80);
+    }
+  }, {passive:true});
+}
+
 // ===== 添加 / 编辑待办 =====
 function openAdd(opts){
   opts = opts || {};
@@ -882,27 +986,39 @@ function toggleRecurDay(n){
   if(i>=0) selRecurDays.splice(i,1); else selRecurDays.push(n);
   renderRecurDays();
 }
-// 12 小时制时间选择器：垂直滚动列表 00:00-23:45（15 分钟间隔，标签带上午/下午）
+// 12 小时制滚轮时间选择器：上午/下午 + 时(1-12) + 分(00-59)
+const WHEEL_H = 40, WHEEL_PAD = 80;
 function initTimePickers(){
   ["start","end"].forEach(prefix=>{
-    const list = document.getElementById(prefix+"TimeList");
-    if(!list || list.children.length) return;
-    let html = "";
-    for(let h=0;h<24;h++){
-      for(let m of ["00","15","30","45"]){
-        const t = String(h).padStart(2,"0")+":"+m;
-        html += '<div class="time-item" data-t="'+t+'" onclick="pickTime(\''+prefix+'\',\''+t+'\')">'+fmtTime12(t)+'</div>';
-      }
+    const hWheel = document.getElementById(prefix+"HourWheel");
+    const mWheel = document.getElementById(prefix+"MinuteWheel");
+    if(!hWheel || hWheel.children.length) return;
+    let hh = "";
+    for(let i=1;i<=12;i++){
+      const v = String(i).padStart(2,"0");
+      hh += '<div class="wheel-item" data-v="'+v+'">'+v+'</div>';
     }
-    list.innerHTML = html;
+    hWheel.innerHTML = hh;
+    let mm = "";
+    for(let i=0;i<60;i++){
+      const v = String(i).padStart(2,"0");
+      mm += '<div class="wheel-item" data-v="'+v+'">'+v+'</div>';
+    }
+    mWheel.innerHTML = mm;
+    [prefix+"AmpmWheel", prefix+"HourWheel", prefix+"MinuteWheel"].forEach(id=>{
+      const w = document.getElementById(id);
+      if(w && !w._bound){ w._bound=true; w.addEventListener("scroll", ()=>onWheelScroll(prefix), {passive:true}); }
+    });
   });
 }
 function toggleTimePanel(prefix){
   const panel = document.getElementById(prefix+"TimePanel");
   const other = prefix==="start" ? "end" : "start";
   document.getElementById(other+"TimePanel").classList.add("hidden");
-  if(panel) panel.classList.toggle("hidden");
-  refreshTimePanelUI(prefix);
+  if(panel){
+    panel.classList.toggle("hidden");
+    if(!panel.classList.contains("hidden")) refreshTimePanelUI(prefix);
+  }
 }
 function closeTimePanels(e){
   if(e && (e.target.closest('.time-box') || e.target.closest('.time-panel'))) return;
@@ -912,28 +1028,75 @@ function closeTimePanels(e){
 function refreshTimePanelUI(prefix){
   const input = document.getElementById(prefix+"Val");
   const val = (input && input.value) || "12:00";
-  const panel = document.getElementById(prefix+"TimePanel");
-  if(!panel) return;
-  panel.querySelectorAll(".time-item").forEach(c=>c.classList.toggle("on", c.dataset.t===val));
-  // 滚动到选中项
-  const on = panel.querySelector(".time-item.on");
-  if(on) on.scrollIntoView({block:"center", behavior:"auto"});
+  setTimeBox(prefix, val);
 }
-function pickTime(prefix, t){
-  setTimeBox(prefix, t);
-  refreshTimePanelUI(prefix);
-  updateTimeHint();
+function onWheelScroll(prefix){
+  updateWheelHighlight(prefix);
+  clearTimeout(window._wheelTimer);
+  window._wheelTimer = setTimeout(()=>{
+    const hm24 = readWheels(prefix);
+    const input = document.getElementById(prefix+"Val");
+    if(input) input.value = hm24;
+    const display = document.getElementById(prefix+"Display");
+    if(display) display.textContent = fmtTime12(hm24);
+    updateTimeHint();
+  }, 150);
+}
+function readWheels(prefix){
+  const ampm = readWheelValue(prefix+"AmpmWheel"); // AM / PM
+  const hStr = readWheelValue(prefix+"HourWheel"); // 01-12
+  const mStr = readWheelValue(prefix+"MinuteWheel"); // 00-59
+  let h = parseInt(hStr, 10) || 0;
+  if(ampm === "PM"){ if(h !== 12) h += 12; }
+  else if(h === 12) h = 0;
+  return String(h).padStart(2,"0")+":"+mStr;
+}
+function readWheelValue(wheelId){
+  const w = document.getElementById(wheelId);
+  if(!w) return "";
+  const idx = Math.max(0, Math.min(w.children.length-1, Math.round((w.scrollTop - WHEEL_PAD) / WHEEL_H)));
+  const item = w.children[idx];
+  return item ? (item.dataset.v || item.textContent) : "";
+}
+function updateWheelHighlight(prefix){
+  ["Ampm","Hour","Minute"].forEach(type=>{
+    const w = document.getElementById(prefix+type+"Wheel");
+    if(!w) return;
+    const idx = Math.max(0, Math.min(w.children.length-1, Math.round((w.scrollTop - WHEEL_PAD) / WHEEL_H)));
+    Array.from(w.children).forEach((c,i)=>c.classList.toggle("on", i===idx));
+  });
 }
 function setTimeBox(prefix, hm24){
   const display = document.getElementById(prefix+"Display");
   const input = document.getElementById(prefix+"Val");
   if(!input) return;
-  if(!hm24){ input.value="12:00"; if(display) display.textContent=fmtTime12("12:00"); return; }
+  if(!hm24){ input.value="12:00"; if(display) display.textContent=fmtTime12("12:00"); scrollWheelsTo(prefix,"12:00"); return; }
   let [h,m]=hm24.split(":").map(Number);
   input.value = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
   if(display) display.textContent = fmtTime12(input.value);
+  scrollWheelsTo(prefix, input.value);
+}
+function scrollWheelsTo(prefix, hm24){
+  let [h,m]=hm24.split(":").map(Number);
+  let ampm = "AM";
+  if(h >= 12){ ampm = "PM"; h = h - 12; }
+  if(h === 0) h = 12;
+  scrollWheel(prefix+"AmpmWheel", ampm==="AM"?0:1);
+  scrollWheel(prefix+"HourWheel", h-1);
+  scrollWheel(prefix+"MinuteWheel", m);
+}
+function scrollWheel(wheelId, index){
+  const w = document.getElementById(wheelId);
+  if(!w) return;
+  w.scrollTo({top: WHEEL_PAD + index*WHEEL_H, behavior:"auto"});
 }
 function getTimeBox(prefix){
+  // 滚轮是真实 UI，优先直接读；避免 input 在快速滚动时还没被 debounce 更新
+  const wheel = document.getElementById(prefix+"HourWheel");
+  if(wheel && wheel.children.length){
+    const v = readWheels(prefix);
+    if(v && /^\d{2}:\d{2}$/.test(v)) return v;
+  }
   const input = document.getElementById(prefix+"Val");
   if(!input) return "";
   const v = input.value;
@@ -1259,6 +1422,7 @@ function tick(){
 applyTheme();
 tick(); setInterval(tick, 30000);
 renderSchedule();
+attachScrollDateSwitch();
 checkReminders();
 setInterval(checkReminders, 60000);
 </script>
