@@ -294,6 +294,14 @@
   .label{font-size:12px; color:var(--text-dim); font-weight:700; margin:6px 2px 6px;}
   .row2{display:flex; gap:10px;}
   .row2 > *{flex:1;}
+  .time-box{display:flex; align-items:center; gap:4px; border:1px solid var(--card-border); background:rgba(128,128,128,.12); border-radius:12px; padding:6px 8px; margin-bottom:12px;}
+  .time-box select{background:transparent; color:var(--text); border:none; font-size:16px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; text-align:center;}
+  .time-h{width:44px; font-weight:700;}
+  .time-m{width:40px; font-weight:700;}
+  .time-colon{color:var(--text-dim); font-weight:700; font-size:16px;}
+  .ampm-toggle{display:flex; margin-left:auto; border:1px solid var(--card-border); border-radius:10px; overflow:hidden;}
+  .ampm{font-size:12px; padding:6px 8px; color:var(--text-dim); cursor:pointer; user-select:none; -webkit-user-select:none;}
+  .ampm.on{background:var(--accent); color:#fff;}
   .catpick{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
   .catpick .cp{
     font-size:13px; font-weight:700; padding:7px 12px; border-radius:18px; cursor:pointer;
@@ -479,8 +487,14 @@
       <input class="field" id="todoDue" type="date" style="margin-bottom:12px;">
       <div class="label">开始时间 / 结束时间</div>
       <div class="row2">
-        <input class="field" id="todoStart" type="time" style="margin-bottom:12px;" placeholder="开始" oninput="updateTimeHint()">
-        <input class="field" id="todoEnd" type="time" style="margin-bottom:4px;" placeholder="结束" oninput="updateTimeHint()">
+        <div class="time-box" id="startTimeBox">
+          <select class="time-h" id="todoStartH"></select><span class="time-colon">:</span><select class="time-m" id="todoStartM"></select>
+          <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('start','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('start','PM')">下午</span></div>
+        </div>
+        <div class="time-box" id="endTimeBox">
+          <select class="time-h" id="todoEndH"></select><span class="time-colon">:</span><select class="time-m" id="todoEndM"></select>
+          <div class="ampm-toggle"><span class="ampm on" data-v="AM" onclick="setAmPm('end','AM')">上午</span><span class="ampm" data-v="PM" onclick="setAmPm('end','PM')">下午</span></div>
+        </div>
       </div>
       <div id="timeHint" style="font-size:11px;color:var(--text-dim);margin:-6px 2px 12px;min-height:16px;"></div>
       <div class="label">重复</div>
@@ -660,8 +674,8 @@ function todoHtml(t, cls){
   else if(cls==="today") tag = '<span class="tag today">今天</span>';
   else if(cls==="soon"){ const nx=nextOcc(t,todayStr()); tag = '<span class="tag soon">'+(nx?fmtDate(nx):"")+'</span>'; }
   let meta = "";
-  if(t.start && t.end) meta = t.start+"–"+t.end;
-  else if(t.start) meta = "从 "+t.start;
+  if(t.start && t.end) meta = fmtTime12(t.start)+" – "+fmtTime12(t.end);
+  else if(t.start) meta = "从 "+fmtTime12(t.start);
   else if(t.due) meta = "日期 "+fmtDate(t.due);
   else meta = "无时间";
   if(tag) meta += " "+tag;
@@ -693,12 +707,14 @@ function renderSchedule(){
   document.getElementById("schDateLabel").textContent = (isToday?"今天 · ":"") + fmtDate(curDate) + " " + weekday(curDate);
   const total = 24 * HOUR_PX;
 
-  // 连续竖直线（脊柱）+ 每小时刻度
+  // 连续竖直线（脊柱）+ 每小时刻度（12 小时制中文）
   let spine = '<div class="tl-spine"></div>';
   let ticks = "";
   for(let h=0; h<24; h++){
+    const h12 = h%12===0?12:h%12;
+    const ampm = h<12?"上午":"下午";
     ticks += '<div class="tl-tick" style="top:'+(h*HOUR_PX)+'px"></div>'
-          +  '<div class="tl-h" style="top:'+(h*HOUR_PX)+'px">'+String(h).padStart(2,"0")+':00</div>';
+          +  '<div class="tl-h" style="top:'+(h*HOUR_PX)+'px">'+ampm+" "+h12+'</div>';
   }
   let nowDot = "";
   if(isToday){
@@ -732,7 +748,7 @@ function renderSchedule(){
     // 右侧标签卡
     blocks += '<div class="tl-block '+(done?"done":"")+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onpointerdown="startDrag(event,'+t.id+')">'
       + '<div class="tl-t" style="color:'+col+'">'+esc(t.title)+'</div>'
-      + '<div class="tl-m">'+t.start+'–'+endStr+' · '+durMin+' 分钟</div></div>';
+      + '<div class="tl-m">'+fmtTime12(t.start)+' – '+fmtTime12(endStr)+' · '+durMin+' 分钟</div></div>';
   });
 
   let strip = "";
@@ -815,9 +831,15 @@ function addDays(s,n){ const d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+n)
 function openAdd(){
   document.getElementById("todoTitle").value="";
   document.getElementById("todoDue").value="";
-  document.getElementById("todoStart").value="";
-  document.getElementById("todoEnd").value="";
   document.getElementById("todoNote").value="";
+  initTimePickers();
+  // 默认开始时间设为下一个整点/半点，结束留空
+  const now=new Date();
+  let h=now.getHours(), m=now.getMinutes();
+  if(m>=30){ h=(h+1)%24; m=0; } else m=30;
+  setTimeBox("todoStart", String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"));
+  setTimeBox("todoEnd", "");
+  document.getElementById("timeHint").textContent="";
   selRecur="none"; selRecurDays=[];
   document.querySelectorAll("#recurPick .rp").forEach(r=>r.classList.toggle("on", r.dataset.r==="none"));
   renderRecurDays();
@@ -865,33 +887,84 @@ function toggleRecurDay(n){
   if(i>=0) selRecurDays.splice(i,1); else selRecurDays.push(n);
   renderRecurDays();
 }
+// 12 小时制时间选择器工具函数
+function initTimePickers(){
+  // 只初始化一次选项
+  if(document.getElementById("todoStartH").options.length) return;
+  ["todoStart","todoEnd"].forEach(pre=>{
+    const hSel=document.getElementById(pre+"H"), mSel=document.getElementById(pre+"M");
+    for(let i=1;i<=12;i++){ const o=document.createElement("option"); o.value=String(i).padStart(2,"0"); o.textContent=String(i).padStart(2,"0"); hSel.appendChild(o); }
+    ["00","15","30","45"].forEach(m=>{ const o=document.createElement("option"); o.value=m; o.textContent=m; mSel.appendChild(o); });
+    hSel.addEventListener("change", updateTimeHint);
+    mSel.addEventListener("change", updateTimeHint);
+  });
+}
+function setAmPm(prefix, v){
+  const box=document.getElementById(prefix+"TimeBox");
+  if(!box) return;
+  box.querySelectorAll(".ampm").forEach(a=>a.classList.toggle("on", a.dataset.v===v));
+  updateTimeHint();
+}
+function setTimeBox(prefix, hm24){
+  const hSel=document.getElementById(prefix+"H"), mSel=document.getElementById(prefix+"M");
+  const box=document.getElementById(prefix+"TimeBox");
+  if(!hSel||!mSel||!box) return;
+  if(!hm24){ hSel.value="12"; mSel.value="00"; setAmPm(prefix,"AM"); return; }
+  let [h,m]=hm24.split(":").map(Number);
+  let ampm="AM";
+  if(h===0){ h=12; }
+  else if(h===12){ ampm="PM"; }
+  else if(h>12){ h-=12; ampm="PM"; }
+  hSel.value=String(h).padStart(2,"0");
+  mSel.value=String(m).padStart(2,"0");
+  setAmPm(prefix, ampm);
+}
+function getTimeBox(prefix){
+  const hSel=document.getElementById(prefix+"H"), mSel=document.getElementById(prefix+"M");
+  const box=document.getElementById(prefix+"TimeBox");
+  if(!hSel||!mSel||!box) return "";
+  let h=parseInt(hSel.value,10)||12;
+  const ampm=box.querySelector(".ampm.on")?.dataset.v || "AM";
+  let h24 = h;
+  if(ampm==="PM"){ if(h!==12) h24=h+12; }
+  else { if(h===12) h24=0; }
+  return String(h24).padStart(2,"0")+":"+mSel.value;
+}
+function fmtTime12(hm24){
+  if(!hm24) return "";
+  let [h,m]=hm24.split(":").map(Number);
+  let ampm="上午";
+  if(h>=12){ ampm="下午"; }
+  let h12 = h%12; if(h12===0) h12=12;
+  return ampm+" "+h12+":"+String(m).padStart(2,"0");
+}
 function parseHM(s){ if(!s) return null; const p=s.split(":"); return parseInt(p[0],10)*60+parseInt(p[1],10); }
 function fmtHM(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
 function normalizeEnd(start, end){
   const sm=parseHM(start), em=parseHM(end);
   if(sm===null || em===null) return end;
-  if(em < sm){ // 用户可能把下午/晚上输成上午（如 12:00–04:00 想表示 12:00–16:00）
+  if(em < sm){ // 用户把结束时间选成早于开始（如 12:00 开始、下午 4 点结束但选了 04:00 AM）
     const em2 = em + 12*60;
     if(em2 >= sm && em2 < 24*60) return fmtHM(em2); // 推断为同一天下午/晚上
   }
   return end; // 保持原样（真跨天或已经正确）
 }
 function updateTimeHint(){
-  const s=document.getElementById("todoStart").value, e=document.getElementById("todoEnd").value;
+  const s=getTimeBox("todoStart"), e=getTimeBox("todoEnd");
   const el=document.getElementById("timeHint");
   if(!s||!e||!el) return;
   const sm=parseHM(s), em=parseHM(e);
   if(em < sm){
     const em2=em+12*60;
-    el.textContent = em2>=sm && em2<24*60 ? "结束早于开始，将自动视为 "+fmtHM(em2)+"（同一天）" : "结束早于开始，视为跨天任务";
+    el.textContent = em2>=sm && em2<24*60 ? "结束早于开始，将自动视为 "+fmtTime12(fmtHM(em2))+"（同一天）" : "结束早于开始，视为跨天任务";
   } else el.textContent = "";
 }
 function saveTodo(){
   const title = document.getElementById("todoTitle").value.trim();
   if(!title){ closeAdd(); return; }
   const due = document.getElementById("todoDue").value || (currentPage==="schedule" ? curDate : todayStr());
-  let start = document.getElementById("todoStart").value;
-  let end = document.getElementById("todoEnd").value;
+  let start = getTimeBox("todoStart");
+  let end = getTimeBox("todoEnd");
   if(start && end) end = normalizeEnd(start, end);
   let recurDays = null;
   if(selRecur==="weekly"){ if(!selRecurDays.length) selRecurDays=[new Date().getDay()]; recurDays=selRecurDays.slice(); }
