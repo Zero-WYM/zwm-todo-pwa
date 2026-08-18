@@ -7,7 +7,7 @@
     var IS_NATIVE = !!(window.AndroidBridge) || /; wv\)|Android.*Version\//.test(navigator.userAgent);
     document.documentElement.classList.toggle('native', IS_NATIVE);
     window.IS_NATIVE = IS_NATIVE;
-    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.2" };
+    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.3" };
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -369,9 +369,14 @@
   .tl-h{position:absolute; left:0; width:46px; text-align:right; top:-7px; font-size:9px; font-weight:700; color:var(--text-dim); background:var(--card); padding:0 4px; border-radius:6px; white-space:nowrap;}
   .tl-seg{position:absolute; left:42px; width:8px; border-radius:4px; cursor:pointer;}
   .tl-seg.done{opacity:.4;}
-  .tl-block{position:absolute; left:64px; width:fit-content; max-width:210px; min-width:130px; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); border-left:3px solid;}
+  .tl-block{position:absolute; left:64px; width:fit-content; max-width:none; min-width:0; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); border-left:3px solid;}
+.tl-block.overlap-left::before{content:""; position:absolute; left:0; top:0; bottom:0; width:12px; background:rgba(248,113,113,.55); z-index:2;}
+.tl-block.overlap-right::after{content:""; position:absolute; right:0; top:0; bottom:0; width:12px; background:rgba(248,113,113,.45); z-index:2;}
   .tl-block .tl-t{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .tl-block .tl-m{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .tl-block.narrow{padding:5px 6px;}
+  .tl-block.narrow .tl-t{font-size:12px;}
+  .tl-block.narrow .tl-m{display:none;}
   .tl-block.done{opacity:.5; text-decoration:line-through;}
   .tl-seg.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 0 10px rgba(248,113,113,.55); z-index:5; }
   .tl-block.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 4px 12px rgba(248,113,113,.25); z-index:5; }
@@ -766,6 +771,50 @@ function setFilter(id){ curFilter = id; renderHome(); }
 
 // ===== 日程时间轴 =====
 const HOUR_PX = 52;
+const OVERLAP_PX = 12; // 重叠任务并排时的重叠像素
+
+// 计算时间轴上带时间任务的列分配，使重叠任务并排显示
+function buildOverlapLayout(tasks){
+  const map = new Map();
+  if(!tasks.length) return map;
+  const list = tasks.map(t=>{
+    const s = parseHM(t.start) || 0;
+    let e = parseHM(t.end);
+    if(e === null) e = s + 60; // 无结束时间默认1小时
+    else if(e <= s) e = 24 * 60; // 跨天任务，按当天24:00算
+    return {t, s, e, id:t.id};
+  });
+  list.sort((a,b)=>a.s-b.s);
+  // 扫描线分重叠组
+  const groups = [];
+  let cur = [], curEnd = 0;
+  list.forEach(item=>{
+    if(!cur.length || item.s < curEnd){
+      cur.push(item);
+      curEnd = Math.max(curEnd, item.e);
+    }else{
+      groups.push(cur);
+      cur = [item];
+      curEnd = item.e;
+    }
+  });
+  if(cur.length) groups.push(cur);
+  // 组内分配列：最早可用的列复用
+  groups.forEach(g=>{
+    g.sort((a,b)=>a.s-b.s);
+    const colEnds = [];
+    g.forEach(item=>{
+      let col = colEnds.findIndex(end=> item.s >= end);
+      if(col < 0) col = colEnds.length;
+      colEnds[col] = item.e;
+      item.col = col;
+    });
+    const maxCols = colEnds.length;
+    g.forEach(item=> item.cols = maxCols);
+  });
+  list.forEach(item=> map.set(item.id, {col:item.col, cols:item.cols, groupSize:item.cols}));
+  return map;
+}
 function schShift(n){ curDate = addDays(curDate, n); renderSchedule(); }
 function schToday(){ curDate = todayStr(); renderSchedule(); }
 function renderSchedule(){
@@ -793,36 +842,40 @@ function renderSchedule(){
   const dayTodos = DB.todos.filter(t=> occursOn(t, curDate));
   const timed = dayTodos.filter(t=> t.start);
   const noTime = dayTodos.filter(t=> !t.start);
-  // 计算时间重叠的任务
-  const overlaps = new Set();
-  for(let i=0;i<timed.length;i++){
-    const a=timed[i], as=parseHM(a.start), ae=a.end?parseHM(a.end):(as+60);
-    for(let j=i+1;j<timed.length;j++){
-      const b=timed[j], bs=parseHM(b.start), be=b.end?parseHM(b.end):(bs+60);
-      if(Math.max(as,bs) < Math.min(ae,be)){ overlaps.add(a.id); overlaps.add(b.id); }
-    }
-  }
+  const layout = buildOverlapLayout(timed);
+  const phoneW = document.getElementById('phone') ? document.getElementById('phone').clientWidth : Math.min(window.innerWidth || 430, 430);
+  const availW = Math.max(120, phoneW - 64 - 16); // 右侧标签可用宽度（减去左边距和右留白）
+
   let segs = "", blocks = "";
   timed.forEach(t=>{
     const sp = t.start.split(":");
     let hh = parseInt(sp[0],10), mm = parseInt(sp[1],10);
-    const top = (hh + mm/60) * HOUR_PX;
+    const startFloat = hh + mm/60;
     let durMin = 60, endStr = t.end;
     if(t.end){
       const ep = t.end.split(":"); let eh = parseInt(ep[0],10), em = parseInt(ep[1],10);
-      durMin = (eh*60+em) - (hh*60+mm);
-      if(durMin <= 0) durMin += 24*60; // 跨天任务：按到次日计算时长，时间轴上画到 24:00 截断
+      let endFloat = eh + em/60;
+      if(endFloat <= startFloat) endFloat = 24; // 跨天任务在今天只画到 24:00
+      durMin = Math.round((endFloat - startFloat) * 60);
     } else {
-      endStr = String(hh+Math.floor((mm+durMin)/60))+":"+String((mm+durMin)%60).padStart(2,"0");
+      endStr = String((hh+1)%24).padStart(2,"0")+":"+String(mm).padStart(2,"0");
     }
+    const top = startFloat * HOUR_PX;
     const h = Math.max(durMin/60 * HOUR_PX, 26);
     const col = taskColor(t, curDate);
     const done = isDoneOn(t, curDate);
-    const ovClass = overlaps.has(t.id) ? " tl-overlap" : "";
-    // 轴上的彩色任务段（起→止）
-    segs += '<div class="tl-seg '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+col+'" onclick="editTodo('+t.id+')"></div>';
+    const info = layout.get(t.id) || {col:0, cols:1};
+    const cols = info.cols || 1;
+    const colW = cols === 1 ? availW : (availW + (cols-1)*OVERLAP_PX) / cols;
+    const left = 64 + info.col * (colW - OVERLAP_PX);
+    const width = colW;
+    const ovClass = cols > 1 ? " tl-overlap" : "";
+    const olCls = (info.col > 0 ? " overlap-left" : "") + (info.col < cols-1 ? " overlap-right" : "");
+    const narrowCls = width < 110 ? " narrow" : "";
+    // 左侧彩色时间段（跟随块列，宽 8px）
+    segs += '<div class="tl-seg '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+col+';left:'+left+'px" onclick="editTodo('+t.id+')"></div>';
     // 右侧标签卡
-    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
+    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+olCls+narrowCls+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;left:'+left+'px;width:'+width+'px;background:'+hexA(col,.18)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
       + '<div class="tl-t" style="color:'+col+'">'+esc(t.title)+'</div>'
       + '<div class="tl-m">'+fmtTime12(t.start)+' – '+fmtTime12(endStr)+' · '+durMin+' 分钟</div></div>';
   });
@@ -1441,6 +1494,25 @@ function tick(){
   document.getElementById("heroDate").textContent = w + " " + (d.getMonth()+1) + "月" + d.getDate() + "日";
 }
 
+// ===== 版本检测：微信/浏览器缓存旧版本时强制刷新 =====
+(function(){
+  const KEY = 'zwm_app_version';
+  const VER = (window.APP_META && window.APP_META.version) || '1.3';
+  const last = localStorage.getItem(KEY);
+  if(last && last !== VER && 'serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      return Promise.all(regs.map(function(r){ return r.unregister(); }));
+    }).then(function(){
+      localStorage.setItem(KEY, VER);
+      if(window.location && window.location.reload) window.location.reload(true);
+    }).catch(function(){
+      localStorage.setItem(KEY, VER);
+    });
+  } else {
+    localStorage.setItem(KEY, VER);
+  }
+})();
+
 // ===== 初始化 =====
 applyTheme();
 tick(); setInterval(tick, 30000);
@@ -1449,6 +1521,6 @@ attachScrollDateSwitch();
 checkReminders();
 setInterval(checkReminders, 60000);
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js');});}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=13');});}</script>
 </body>
 </html>
