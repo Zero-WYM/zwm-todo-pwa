@@ -7,7 +7,7 @@
     var IS_NATIVE = !!(window.AndroidBridge) || /; wv\)|Android.*Version\//.test(navigator.userAgent);
     document.documentElement.classList.toggle('native', IS_NATIVE);
     window.IS_NATIVE = IS_NATIVE;
-    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.4" };
+    window.APP_META = { name:"Zero望月明工作台", package:"com.zerowangyueming.todoapp", version:"1.5" };
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -115,9 +115,10 @@
   .statusbar .right{display:flex; gap:6px; align-items:center;}
   .brandbar{
     position:relative; z-index:2;
-    display:flex; align-items:center; justify-content:space-between;
+    display:flex; align-items:center; justify-content:center;
     padding:4px 20px 12px;
   }
+  .brandbar-inner{text-align:center;}
   .brandbar h1{
     font-size:21px; margin:0; font-weight:800; letter-spacing:.5px;
     background:linear-gradient(90deg,var(--accent),#67e8f9);
@@ -125,6 +126,7 @@
   }
   .brandbar .sub{font-size:11px; color:var(--text-dim); display:block; font-weight:600; margin-top:2px;}
   .theme-toggle{
+    position:absolute; right:20px; top:50%; transform:translateY(-50%);
     border:1px solid var(--card-border); background:var(--card);
     color:var(--text); border-radius:20px; padding:6px 12px;
     font-size:13px; cursor:pointer; backdrop-filter:blur(12px);
@@ -292,7 +294,11 @@
     animation:slideup .25s ease; max-height:90%; overflow-y:auto;
   }
   @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
-  .sheet h3{margin:0 0 14px; font-size:17px;}
+  .sheet-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .sheet h3{margin:0; font-size:17px;}
+  .done-check{width:34px; height:34px; border-radius:50%; border:2px solid var(--card-border); background:var(--card); color:var(--text-dim); font-size:18px; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:.15s;}
+  .done-check.on{border-color:#34d399; background:rgba(52,211,153,.15); color:#34d399; box-shadow:0 0 8px rgba(52,211,153,.3);}
+  .btn.danger{background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.35); color:#f87171;}
   .field{width:100%; padding:12px 14px; border-radius:12px; font-size:15px;
     border:1px solid var(--card-border); background:rgba(128,128,128,.12); color:var(--text);
     margin-bottom:12px; outline:none;}
@@ -367,17 +373,19 @@
   .tl-spine{position:absolute; left:46px; top:0; bottom:0; width:2px; background:var(--card-border); border-radius:2px;}
   .tl-tick{position:absolute; left:41px; width:10px; height:2px; background:var(--card-border);}
   .tl-h{position:absolute; left:0; width:46px; text-align:right; top:-7px; font-size:9px; font-weight:700; color:var(--text-dim); background:var(--card); padding:0 4px; border-radius:6px; white-space:nowrap;}
-  .tl-block{position:absolute; left:54px; width:fit-content; max-width:none; min-width:0; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.18); border-left:5px solid; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35);}
-.tl-block.overlap-left::before{content:""; position:absolute; left:0; top:0; bottom:0; width:10px; background:rgba(248,113,113,.55); z-index:2;}
-.tl-block.overlap-right::after{content:""; position:absolute; right:0; top:0; bottom:0; width:10px; background:rgba(248,113,113,.45); z-index:2;}
+  .tl-block{position:absolute; left:54px; width:fit-content; max-width:none; min-width:0; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.22); border-left:5px solid; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.tl-block.overlap-left::before{content:""; position:absolute; left:0; top:0; bottom:0; width:14px; background:#ff2e2e; z-index:2; opacity:.75;}
+.tl-block.overlap-right::after{content:""; position:absolute; right:0; top:0; bottom:0; width:14px; background:#ff2e2e; z-index:2; opacity:.65;}
   .tl-block .tl-t{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#fff;}
-  .tl-block .tl-m{font-size:11px; color:rgba(255,255,255,.78); margin-top:2px;}
+  .tl-block .tl-m{font-size:11px; color:rgba(255,255,255,.8); margin-top:2px;}
   .tl-block.narrow{padding:5px 6px;}
   .tl-block.narrow .tl-t{font-size:12px;}
   .tl-block.narrow .tl-m{display:none;}
-  .tl-block.done{opacity:.55; text-decoration:line-through;}
-  .tl-block.tl-overlap{ box-shadow:0 0 0 2px #f87171, 0 4px 12px rgba(248,113,113,.25); z-index:5; }
-  .tl-now{position:absolute; left:41px; width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow:0 0 6px #f87171; margin-top:-4px;}
+  .tl-block.done{filter:grayscale(1); opacity:.5; text-decoration:line-through;}
+  .tl-block.tl-overlap{ box-shadow:0 0 0 3px #ff0000, 0 0 18px rgba(255,0,0,.45); z-index:5; }
+  .tl-block.tl-overlap::after{content:""; position:absolute; inset:0; background:rgba(255,0,0,.12); pointer-events:none; z-index:1;}
+  .tl-now{position:absolute; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, #f87171 10%, #f87171 90%, transparent); z-index:6;}
+  .tl-now::after{content:"现在"; position:absolute; left:50%; top:-9px; transform:translateX(-50%); background:#f87171; color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px; line-height:1;}
   .catpick .cp-add{border-style:dashed; color:var(--accent); font-weight:800; font-size:15px; padding:7px 12px;}
 
   /* ===== 原生外壳适配（Android WebView / PWA 安装态） ===== */
@@ -400,8 +408,8 @@
   </div>
 
   <div class="brandbar">
-    <div>
-      <h1>望月明 · 待办</h1>
+    <div class="brandbar-inner">
+      <h1>望月明 · 工作台</h1>
       <span class="sub">Zero-望月明</span>
     </div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">浅色磨砂</button>
@@ -463,7 +471,7 @@
       </div>
       <div class="section-title">关于</div>
       <div class="card">
-        <div class="row"><span>应用名称</span><span class="val">望月明 · 待办</span></div>
+        <div class="row"><span>应用名称</span><span class="val">望月明 · 工作台</span></div>
         <div class="row"><span>版本</span><span class="val">v1.2 · 本地版</span></div>
         <div class="row"><span>存储</span><span class="val">本机 localStorage</span></div>
       </div>
@@ -502,10 +510,13 @@
     </button>
   </nav>
 
-  <!-- 添加待办弹窗 -->
+  <!-- 添加/编辑待办弹窗 -->
   <div class="mask" id="addMask" onclick="if(event.target===this)closeAdd()">
     <div class="sheet" onclick="closeTimePanels(event)">
-      <h3 id="addTitle">添加待办</h3>
+      <div class="sheet-head">
+        <h3 id="addTitle">添加待办</h3>
+        <button class="done-check" id="doneCheck" onclick="toggleEditingDone()" title="标记完成">✓</button>
+      </div>
       <input class="field" id="todoTitle" placeholder="要做点什么？回车即保存" onkeydown="if(event.key==='Enter')saveTodo()">
       <div class="label">分类</div>
       <div class="catpick" id="catPick"></div>
@@ -554,7 +565,8 @@
       <div class="label">备注（可选）</div>
       <textarea class="field" id="todoNote" rows="2" placeholder="补充说明…"></textarea>
       <button class="btn primary" id="saveBtn" onclick="saveTodo()">保存</button>
-      <button class="btn" onclick="closeAdd()">取消</button>
+      <button class="btn danger" id="delBtn" onclick="onEditDelete()" style="display:none;">删除</button>
+      <button class="btn" id="cancelBtn" onclick="closeAdd()">取消</button>
     </div>
   </div>
 
@@ -869,7 +881,7 @@ function renderSchedule(){
     const olCls = (info.col > 0 ? " overlap-left" : "") + (info.col < cols-1 ? " overlap-right" : "");
     const narrowCls = width < 110 ? " narrow" : "";
     // 色块本身即任务块：分类颜色背景 + 同色左边框 + 白色文字
-    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+olCls+narrowCls+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;left:'+left+'px;width:'+width+'px;background:'+hexA(col,.42)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
+    blocks += '<div class="tl-block '+(done?"done":"")+ovClass+olCls+narrowCls+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+h+'px;left:'+left+'px;width:'+width+'px;background:'+hexA(col,.55)+';border-left-color:'+col+'" onclick="editTodo('+t.id+')">'
       + '<div class="tl-t">'+esc(t.title)+'</div>'
       + '<div class="tl-m">'+fmtTime12(t.start)+' – '+fmtTime12(endStr)+' · '+durMin+' 分钟</div></div>';
   });
@@ -950,28 +962,29 @@ function attachScrollDateSwitch(){
   const main = document.querySelector("main");
   if(!main || main._scrollSwitchBound) return;
   main._scrollSwitchBound = true;
-  let startY=0, startTop=0, triggered=false;
+  let startY=0, triggered=false;
   main.addEventListener("touchstart", e=>{
     if(currentPage !== "schedule") return;
     startY = e.touches[0].clientY;
-    startTop = main.scrollTop;
     triggered = false;
   }, {passive:true});
   main.addEventListener("touchmove", e=>{
     if(triggered || currentPage !== "schedule") return;
     const y = e.touches[0].clientY;
     const dy = y - startY;
+    const top = main.scrollTop;
     const maxTop = main.scrollHeight - main.clientHeight;
-    if(startTop <= 2 && dy > 80){
+    if(top <= 2 && dy > 60){
       triggered = true;
       schShift(-1);
       setTimeout(()=>{ if(main) main.scrollTop = main.scrollHeight - main.clientHeight; }, 80);
-    } else if(startTop >= maxTop - 2 && dy < -80){
+    } else if(top >= maxTop - 2 && dy < -60){
       triggered = true;
       schShift(1);
       setTimeout(()=>{ if(main) main.scrollTop = 0; }, 80);
     }
   }, {passive:true});
+  main.addEventListener("touchend", ()=>{ triggered=false; });
 }
 
 // ===== 添加 / 编辑待办 =====
@@ -980,6 +993,11 @@ function openAdd(opts){
   editingId = null;
   document.getElementById("addTitle").textContent = "添加待办";
   document.getElementById("saveBtn").textContent = "保存";
+  document.getElementById("delBtn").style.display = "none";
+  document.getElementById("cancelBtn").style.display = "inline-flex";
+  const doneCheck = document.getElementById("doneCheck");
+  doneCheck.style.visibility = "hidden";
+  doneCheck.classList.remove("on");
   document.getElementById("todoTitle").value="";
   document.getElementById("todoNote").value="";
   initTimePickers();
@@ -1000,10 +1018,23 @@ function openAdd(opts){
   document.getElementById("addMask").classList.add("show");
   document.getElementById("todoTitle").focus();
 }
-function closeAdd(){ editingId=null; document.getElementById("addTitle").textContent="添加待办"; document.getElementById("saveBtn").textContent="保存"; document.getElementById("addMask").classList.remove("show"); }
+function closeAdd(){ editingId=null; document.getElementById("addTitle").textContent="添加待办"; document.getElementById("saveBtn").textContent="保存"; document.getElementById("delBtn").style.display="none"; document.getElementById("cancelBtn").style.display="inline-flex"; const dc=document.getElementById("doneCheck"); dc.style.visibility="hidden"; dc.classList.remove("on"); document.getElementById("addMask").classList.remove("show"); }
+function toggleEditingDone(){
+  if(!editingId) return;
+  toggleTodo(editingId);
+  const t=DB.todos.find(x=>x.id===editingId); if(!t) return;
+  const d=(currentPage==="schedule")?curDate:todayStr();
+  document.getElementById("doneCheck").classList.toggle("on", isDoneOn(t,d));
+  // 点完成不立即关闭弹窗，让用户能看到勾选反馈；如需关闭可再点
+}
+function onEditDelete(){
+  if(!editingId) return;
+  delTodo(editingId);
+  closeAdd();
+}
 function onTimelineDblClick(e){
   // 双击时间轴空白处：按点击位置快速创建对应时段的待办
-  if(e.target.closest('.tl-seg') || e.target.closest('.tl-block') || e.target.closest('.tl-notime')) return;
+  if(e.target.closest('.tl-block') || e.target.closest('.tl-notime')) return;
   const wrap = e.currentTarget;
   const y = e.offsetY;
   let hour = Math.max(0, Math.min(23, Math.floor(y / HOUR_PX)));
@@ -1289,6 +1320,12 @@ function editTodo(id){
   editingId = id;
   document.getElementById("addTitle").textContent = "编辑待办";
   document.getElementById("saveBtn").textContent = "更新";
+  document.getElementById("delBtn").style.display = "inline-flex";
+  document.getElementById("cancelBtn").style.display = "none";
+  const doneCheck = document.getElementById("doneCheck");
+  doneCheck.style.visibility = "visible";
+  const d = (currentPage==="schedule") ? curDate : todayStr();
+  doneCheck.classList.toggle("on", isDoneOn(t, d));
   document.getElementById("todoTitle").value = t.title;
   document.getElementById("todoNote").value = t.note || "";
   pickCatId = t.catId;

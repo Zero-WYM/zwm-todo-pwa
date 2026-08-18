@@ -1,6 +1,6 @@
 // Zero望月明工作台 — Service Worker 离线缓存壳
 // 缓存应用外壳，优先走网络以保证微信/浏览器永远拿到最新版本。
-const CACHE_NAME = 'zwm-todo-v14';
+const CACHE_NAME = 'zwm-todo-v15';
 const ASSETS = [
   './',
   './index.html',
