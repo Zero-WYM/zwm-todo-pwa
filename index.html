@@ -518,17 +518,19 @@
       </div>
       <div class="time-panel hidden" id="startTimePanel" onclick="event.stopPropagation()">
         <div class="wheel-row" id="startWheels">
-          <div class="time-wheel" id="startAmpmWheel"><div class="wheel-item on" data-v="AM">上午</div><div class="wheel-item" data-v="PM">下午</div></div>
+          <div class="time-wheel" id="startAmpmWheel"></div>
           <div class="time-wheel" id="startHourWheel"></div>
           <div class="time-wheel" id="startMinuteWheel"></div>
         </div>
+        <button class="btn primary" style="margin-top:10px;" onclick="confirmTimePanel('start')">确定</button>
       </div>
       <div class="time-panel hidden" id="endTimePanel" onclick="event.stopPropagation()">
         <div class="wheel-row" id="endWheels">
-          <div class="time-wheel" id="endAmpmWheel"><div class="wheel-item on" data-v="AM">上午</div><div class="wheel-item" data-v="PM">下午</div></div>
+          <div class="time-wheel" id="endAmpmWheel"></div>
           <div class="time-wheel" id="endHourWheel"></div>
           <div class="time-wheel" id="endMinuteWheel"></div>
         </div>
+        <button class="btn primary" style="margin-top:10px;" onclick="confirmTimePanel('end')">确定</button>
       </div>
       <div id="timeHint" style="font-size:11px;color:var(--text-dim);margin:-6px 2px 12px;min-height:16px;"></div>
       <div class="label">重复</div>
@@ -844,9 +846,15 @@ function openDatePicker(){
   const d = new Date(curDate+"T00:00:00");
   calYear = d.getFullYear(); calMonth = d.getMonth();
   renderCalendar();
-  document.getElementById("datePickerMask").classList.add("show");
+  const mask = document.getElementById("datePickerMask");
+  mask.classList.remove("hidden");
+  mask.classList.add("show");
 }
-function closeDatePicker(){ document.getElementById("datePickerMask").classList.remove("show"); }
+function closeDatePicker(){
+  const mask = document.getElementById("datePickerMask");
+  mask.classList.remove("show");
+  mask.classList.add("hidden");
+}
 function changeCalMonth(n){
   calMonth += n;
   if(calMonth < 0){ calMonth = 11; calYear--; }
@@ -990,9 +998,16 @@ function toggleRecurDay(n){
 const WHEEL_H = 40, WHEEL_PAD = 80;
 function initTimePickers(){
   ["start","end"].forEach(prefix=>{
+    const aWheel = document.getElementById(prefix+"AmpmWheel");
     const hWheel = document.getElementById(prefix+"HourWheel");
     const mWheel = document.getElementById(prefix+"MinuteWheel");
     if(!hWheel || hWheel.children.length) return;
+    // AM/PM 列重复 3 组，让滚轮可滚动且能正确 snap 到下午
+    let aa = "";
+    for(let i=0;i<3;i++){
+      aa += '<div class="wheel-item" data-v="AM">上午</div><div class="wheel-item" data-v="PM">下午</div>';
+    }
+    aWheel.innerHTML = aa;
     let hh = "";
     for(let i=1;i<=12;i++){
       const v = String(i).padStart(2,"0");
@@ -1022,8 +1037,26 @@ function toggleTimePanel(prefix){
 }
 function closeTimePanels(e){
   if(e && (e.target.closest('.time-box') || e.target.closest('.time-panel'))) return;
+  // 关闭前立即把滚轮值落盘，避免 debounce 还没跑完
+  ["start","end"].forEach(prefix=>{
+    const hm24 = readWheels(prefix);
+    const input = document.getElementById(prefix+"Val");
+    if(input) input.value = hm24;
+    const display = document.getElementById(prefix+"Display");
+    if(display) display.textContent = fmtTime12(hm24);
+  });
   document.getElementById('startTimePanel').classList.add('hidden');
   document.getElementById('endTimePanel').classList.add('hidden');
+  updateTimeHint();
+}
+function confirmTimePanel(prefix){
+  const hm24 = readWheels(prefix);
+  const input = document.getElementById(prefix+"Val");
+  if(input) input.value = hm24;
+  const display = document.getElementById(prefix+"Display");
+  if(display) display.textContent = fmtTime12(hm24);
+  document.getElementById(prefix+"TimePanel").classList.add('hidden');
+  updateTimeHint();
 }
 function refreshTimePanelUI(prefix){
   const input = document.getElementById(prefix+"Val");
@@ -1056,7 +1089,12 @@ function readWheelValue(wheelId){
   if(!w) return "";
   const idx = Math.max(0, Math.min(w.children.length-1, Math.round((w.scrollTop - WHEEL_PAD) / WHEEL_H)));
   const item = w.children[idx];
-  return item ? (item.dataset.v || item.textContent) : "";
+  if(!item) return "";
+  if(wheelId.includes("AmpmWheel")){
+    // AM/PM 列是重复项，用 mod 2 归一化
+    return idx % 2 === 0 ? "AM" : "PM";
+  }
+  return item.dataset.v || item.textContent || "";
 }
 function updateWheelHighlight(prefix){
   ["Ampm","Hour","Minute"].forEach(type=>{
@@ -1081,7 +1119,7 @@ function scrollWheelsTo(prefix, hm24){
   let ampm = "AM";
   if(h >= 12){ ampm = "PM"; h = h - 12; }
   if(h === 0) h = 12;
-  scrollWheel(prefix+"AmpmWheel", ampm==="AM"?0:1);
+  scrollWheel(prefix+"AmpmWheel", ampm==="AM"?0:1); // 第一组的 AM/PM
   scrollWheel(prefix+"HourWheel", h-1);
   scrollWheel(prefix+"MinuteWheel", m);
 }
