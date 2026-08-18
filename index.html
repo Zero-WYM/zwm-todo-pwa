@@ -353,7 +353,7 @@
   .tl-wrap{position:relative; margin-left:0;}
   .tl-spine{position:absolute; left:46px; top:0; bottom:0; width:2px; background:var(--card-border); border-radius:2px;}
   .tl-tick{position:absolute; left:41px; width:10px; height:2px; background:var(--card-border);}
-  .tl-h{position:absolute; left:0; width:36px; text-align:right; top:-7px; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--card); padding:0 4px; border-radius:6px;}
+  .tl-h{position:absolute; left:0; width:46px; text-align:right; top:-7px; font-size:9px; font-weight:700; color:var(--text-dim); background:var(--card); padding:0 4px; border-radius:6px; white-space:nowrap;}
   .tl-seg{position:absolute; left:42px; width:8px; border-radius:4px; cursor:pointer;}
   .tl-seg.done{opacity:.4;}
   .tl-block{position:absolute; left:64px; width:fit-content; max-width:210px; min-width:130px; border-radius:10px; padding:7px 10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); border-left:3px solid;}
@@ -499,11 +499,11 @@
       <div class="row2">
         <div class="time-box" id="startTimeBox" onclick="toggleTimePanel('start')">
           <input type="hidden" id="todoStartVal">
-          <span class="time-display" id="todoStartDisplay">12:00<span class="ampm-label">上午</span></span>
+          <span class="time-display" id="todoStartDisplay">12:00</span>
         </div>
         <div class="time-box" id="endTimeBox" onclick="toggleTimePanel('end')">
           <input type="hidden" id="todoEndVal">
-          <span class="time-display" id="todoEndDisplay">12:00<span class="ampm-label">上午</span></span>
+          <span class="time-display" id="todoEndDisplay">12:00</span>
         </div>
       </div>
       <div class="time-panel hidden" id="startTimePanel" onclick="event.stopPropagation()">
@@ -735,7 +735,8 @@ function renderSchedule(){
   let spine = '<div class="tl-spine"></div>';
   let ticks = "";
   for(let h=0; h<24; h++){
-    const label = String(h).padStart(2,"0")+":00";
+    let h12 = h%12; if(h12===0) h12=12;
+    const label = periodLabel(h)+" "+h12+":00";
     ticks += '<div class="tl-tick" style="top:'+(h*HOUR_PX)+'px"></div>'
           +  '<div class="tl-h" style="top:'+(h*HOUR_PX)+'px">'+label+'</div>';
   }
@@ -881,7 +882,7 @@ function toggleRecurDay(n){
   if(i>=0) selRecurDays.splice(i,1); else selRecurDays.push(n);
   renderRecurDays();
 }
-// 24 小时制时间选择器：垂直滚动列表 00:00-23:45（15 分钟间隔）
+// 12 小时制时间选择器：垂直滚动列表 00:00-23:45（15 分钟间隔，标签带上午/下午）
 function initTimePickers(){
   ["start","end"].forEach(prefix=>{
     const list = document.getElementById(prefix+"TimeList");
@@ -890,7 +891,7 @@ function initTimePickers(){
     for(let h=0;h<24;h++){
       for(let m of ["00","15","30","45"]){
         const t = String(h).padStart(2,"0")+":"+m;
-        html += '<div class="time-item" data-t="'+t+'" onclick="pickTime(\''+prefix+'\',\''+t+'\')">'+t+'</div>';
+        html += '<div class="time-item" data-t="'+t+'" onclick="pickTime(\''+prefix+'\',\''+t+'\')">'+fmtTime12(t)+'</div>';
       }
     }
     list.innerHTML = html;
@@ -927,10 +928,10 @@ function setTimeBox(prefix, hm24){
   const display = document.getElementById(prefix+"Display");
   const input = document.getElementById(prefix+"Val");
   if(!input) return;
-  if(!hm24){ input.value="12:00"; if(display) display.textContent="12:00"; return; }
+  if(!hm24){ input.value="12:00"; if(display) display.textContent=fmtTime12("12:00"); return; }
   let [h,m]=hm24.split(":").map(Number);
   input.value = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-  if(display) display.textContent = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+  if(display) display.textContent = fmtTime12(input.value);
 }
 function getTimeBox(prefix){
   const input = document.getElementById(prefix+"Val");
@@ -939,10 +940,18 @@ function getTimeBox(prefix){
   if(!v || !/^\d{2}:\d{2}$/.test(v)) return "";
   return v;
 }
+function periodLabel(h){
+  if(h===0) return "凌晨";
+  if(h===12) return "中午";
+  if(h>=18) return "晚上";
+  if(h>=13) return "下午";
+  return "上午";
+}
 function fmtTime12(hm24){
   if(!hm24) return "";
   let [h,m]=hm24.split(":").map(Number);
-  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+  let h12=h%12; if(h12===0) h12=12;
+  return periodLabel(h)+" "+h12+":"+String(m).padStart(2,"0");
 }
 function parseHM(s){ if(!s) return null; const p=s.split(":"); return parseInt(p[0],10)*60+parseInt(p[1],10); }
 function fmtHM(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
