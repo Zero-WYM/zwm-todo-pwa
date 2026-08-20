@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 白色弯月：白色圆盘叠加一个深紫圆盘切出月牙 -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M54 24a30 30 0 1 0 0 60 30 30 0 0 0 0-60z" />
+    <path
+        android:fillColor="#1a1230"
+        android:pathData="M66 24a30 30 0 1 1 0 60 30 30 0 0 1 0-60z" />
+</vector>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌紫主色 -->
+    <color name="purple_primary">#a78bfa</color>
+    <!-- 深底 -->
+    <color name="bg_deep">#0c0a16</color>
+    <!-- 启动/状态栏深紫底（与 PWA theme_color 一致） -->
+    <color name="black_purple">#0c0a16</color>
+</resources>

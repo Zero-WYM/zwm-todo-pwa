@@ -1,0 +1,91 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'android/**'
+      - 'index.html'
+      - 'sw.js'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read versionName from build.gradle
+        id: ver
+        run: |
+          VER=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+          if [ -z "$VER" ]; then echo "无法解析 versionName"; exit 1; fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "versionName = $VER"
+
+      - name: Sync web assets into APK
+        run: |
+          cp index.html android/app/src/main/assets/index.html
+          cp sw.js     android/app/src/main/assets/sw.js
+          ls -l android/app/src/main/assets/
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APK
+        id: collect
+        run: |
+          SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          if [ ! -f "$SRC" ]; then echo "APK 未生成"; find android -name '*.apk'; exit 1; fi
+          mkdir -p dist
+          OUT="dist/ZeroWangyueming-v${{ steps.ver.outputs.version }}.apk"
+          cp "$SRC" "$OUT"
+          echo "apk=$OUT" >> "$GITHUB_OUTPUT"
+          ls -lh dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroWangyueming-APK-v${{ steps.ver.outputs.version }}
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Publish Release (手机可直接下载)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="apk-v${{ steps.ver.outputs.version }}-build${{ github.run_number }}"
+          printf '%s\n' \
+            '用手机浏览器打开本页，直接点下方 .apk 文件即可下载安装。' \
+            '' \
+            '安装提示：系统会提示「未知来源应用」，允许一次即可。' \
+            '' \
+            '- 应用版本：v${{ steps.ver.outputs.version }}' \
+            '- 构建号：#${{ github.run_number }}' \
+            '- 数据全部保存在手机本地，不联网、不上传' \
+            > notes.md
+          gh release create "$TAG" "${{ steps.collect.outputs.apk }}" \
+            --title "Zero望月明工作台 v${{ steps.ver.outputs.version }}" \
+            --notes-file notes.md \
+            --latest
+          echo "Release 页面：https://github.com/${{ github.repository }}/releases/tag/$TAG"

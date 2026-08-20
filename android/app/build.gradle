@@ -1,0 +1,45 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.zerowangyueming.todoapp'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.zerowangyueming.todoapp"
+        minSdk 24
+        targetSdk 34
+        versionCode 3
+        versionName "1.5"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // === 发布签名示例（注释，按需开启）===
+            // 1) 生成 keystore（在 android/ 目录执行）：
+            //    keytool -genkey -v -keystore release.keystore -alias zwm -keyalg RSA -keysize 2048 -validity 10000
+            // 2) 取消下方注释并填入对应密码后执行：gradlew.bat assembleRelease
+            // signingConfigs {
+            //     release {
+            //         storeFile file("release.keystore")
+            //         storePassword "your_store_password"
+            //         keyAlias "zwm"
+            //         keyPassword "your_key_password"
+            //     }
+            // }
+            // signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.9.0'
+    // Material3 主题（Theme.Material3.*，见 res/values/themes.xml）所需依赖，确保资源可编译
+    implementation 'com.google.android.material:material:1.11.0'
+}
